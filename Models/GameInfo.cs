@@ -3,6 +3,8 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using GitHubLauncher.Core.Models;
+using GitHubLauncher.Core.Services;
+using GithubLauncher.Services;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -18,7 +20,7 @@ namespace GithubLauncher.Models
     public class GameInfo : INotifyPropertyChanged, IDisposable
     {
         private const string DefaultInstalledVersion = "v0.0.0";
-        public event Action<Process?>? GameProcessStarted;
+        internal Action<Process?>? GameProcessStarted;
         private string? _latestVersion;
         private string? _installedVersion;
         private string? _preferredVersion;
@@ -629,9 +631,61 @@ namespace GithubLauncher.Models
         {
             return new GameInstallationOptions
             {
-                Log = message => Debug.WriteLine(message)
+                Log = _ => { }
             };
         }
+
+        // --- Forwarding methods (delegate to extracted services) ---
+
+        public async Task CheckStatusAsync(HttpClient httpClient, string gamesFolder, bool forceUpdateCheck = false)
+        {
+            var api = new GameApiService(new GameCacheService());
+            await api.CheckStatusAsync(this, httpClient, gamesFolder, forceUpdateCheck);
+        }
+
+        public async Task ForceUpdateAsync(HttpClient httpClient, string gamesFolder)
+        {
+            var api = new GameApiService(new GameCacheService());
+            await api.ForceUpdateAsync(this, httpClient, gamesFolder);
+        }
+
+        public async Task PerformActionAsync(HttpClient httpClient, string gamesFolder, AppSettings settings)
+        {
+            var api = new GameApiService(new GameCacheService());
+            await api.PerformActionAsync(this, httpClient, gamesFolder, settings);
+        }
+
+
+        public async Task InstallReleaseAsync(HttpClient httpClient, string gamesFolder, AppSettings settings, GitHubRelease release, GitHubAsset selectedAsset)
+        {
+            var api = new GameApiService(new GameCacheService());
+            await api.InstallReleaseAsync(this, httpClient, gamesFolder, settings, release, selectedAsset);
+        }
+
+        public async Task LaunchAsync(string gamesFolder)
+        {
+            var api = new GameApiService(new GameCacheService());
+            await api.LaunchAsync(this, gamesFolder);
+        }
+
+        public async Task LoadAndCacheDefaultIconAsync(string cacheDirectory)
+        {
+            var cache = new GameCacheService();
+            await cache.LoadAndCacheDefaultIconAsync(this, cacheDirectory);
+        }
+
+        public void LoadCustomIcon(string cacheDirectory) => new GameCacheService().LoadCustomIcon(this, cacheDirectory);
+        public void SaveSelectedExecutable(string executablePath, string gamesFolder) => new GameCacheService().SaveSelectedExecutable(this, executablePath, gamesFolder);
+        public string? LoadSelectedExecutable(string gamesFolder) => new GameCacheService().LoadSelectedExecutable(this, gamesFolder);
+        public void ClearSelectedExecutable(string gamesFolder) => new GameCacheService().ClearSelectedExecutable(this, gamesFolder);
+        public void SetCustomIcon(string sourcePath, string cacheDirectory) => new GameCacheService().SetCustomIcon(this, sourcePath, cacheDirectory);
+        public void RemoveCustomIcon() => new GameCacheService().RemoveCustomIcon(this);
+
+        public static string? GetPlatformIcon(string assetName) => GameApiService.GetPlatformIcon(assetName);
+        public static bool MatchesPlatform(string assetName, string platformIdentifier) => GameApiService.MatchesPlatform(assetName, platformIdentifier);
+        public static string GetPlatformIdentifier(AppSettings settings) => GameApiService.GetPlatformIdentifier(settings);
+        public static void EnsureExecutableAtRoot(string gamePath) => GameApiService.EnsureExecutableAtRoot(gamePath);
+        public static List<string> GetExecutableCandidates(string gamePath, SearchOption searchOption, out bool needsWine) => GameApiService.GetExecutableCandidates(gamePath, searchOption, out needsWine);
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

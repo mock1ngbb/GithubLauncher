@@ -194,7 +194,7 @@ namespace GithubLauncher.Services
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn($"Failed to start {player}", ex);
+                    Log.Error($"Failed to start {player}", ex);
                     continue;
                 }
             }
