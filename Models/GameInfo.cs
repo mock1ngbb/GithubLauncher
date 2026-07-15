@@ -971,6 +971,7 @@ namespace GithubLauncher.Models
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to save selected executable for {Name}: {ex.Message}");
+                _ = ShowMessageBoxAsync($"Failed to save executable selection: {ex.Message}", "Error");
             }
         }
 
@@ -1002,6 +1003,7 @@ namespace GithubLauncher.Models
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to load selected executable for {Name}: {ex.Message}");
+                _ = ShowMessageBoxAsync($"Failed to load saved executable preference: {ex.Message}", "Error");
             }
 
             return null;
@@ -1029,6 +1031,7 @@ namespace GithubLauncher.Models
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to clear selected executable for {Name}: {ex.Message}");
+                _ = ShowMessageBoxAsync($"Failed to clear executable selection: {ex.Message}", "Error");
             }
         }
 
