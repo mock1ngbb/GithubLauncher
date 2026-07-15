@@ -4842,39 +4842,74 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
             }
         }
 
-        private async Task FadeMusicAsync(float targetVolume, int durationMs)
+        private Task FadeMusicAsync(float targetVolume, int durationMs)
         {
         #if WINDOWS
+            return FadeMusicWindowsAsync(targetVolume, durationMs);
+        #else
+            if (targetVolume < 0.01f)
+            {
+                if (_musicProcess != null && !_musicProcess.HasExited)
+                {
+                    try
+                    {
+                        _musicProcess.Kill();
+                        Debug.WriteLine("Music paused (process killed)");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Failed to pause music: {ex.Message}");
+                    }
+                }
+            }
+            else if (targetVolume > 0.01f)
+            {
+                if (_musicProcess == null || _musicProcess.HasExited)
+                {
+                    if (!string.IsNullOrEmpty(LauncherMusicPath) && File.Exists(LauncherMusicPath))
+                    {
+                        PlayLauncherMusic(LauncherMusicPath);
+                        Debug.WriteLine("Music resumed");
+                    }
+                }
+            }
+
+            return Task.CompletedTask;
+        #endif
+        }
+
+        #if WINDOWS
+        private async Task FadeMusicWindowsAsync(float targetVolume, int durationMs)
+        {
             if (_audioFileReader == null)
                 return;
 
-        // Cancel any ongoing fade
-        _fadeTaskCts?.Cancel();
-        _fadeTaskCts = new System.Threading.CancellationTokenSource();
-        var token = _fadeTaskCts.Token;
+            _fadeTaskCts?.Cancel();
+            _fadeTaskCts = new System.Threading.CancellationTokenSource();
+            var token = _fadeTaskCts.Token;
 
-        try
-        {
-            float currentVolume = _audioFileReader.Volume;
-            float targetVol = targetVolume;
-
-            if (Math.Abs(currentVolume - targetVol) < 0.001f)
-                return;
-
-            int steps = 20;
-            int stepDelay = durationMs / steps;
-            float volumeStep = (targetVol - currentVolume) / steps;
-
-            for (int i = 0; i < steps; i++)
+            try
             {
-                if (token.IsCancellationRequested || _audioFileReader == null)
+                float currentVolume = _audioFileReader.Volume;
+                float targetVol = targetVolume;
+
+                if (Math.Abs(currentVolume - targetVol) < 0.001f)
                     return;
 
-                currentVolume += volumeStep;
-                _audioFileReader.Volume = Math.Clamp(currentVolume, 0f, 1f);
+                int steps = 20;
+                int stepDelay = durationMs / steps;
+                float volumeStep = (targetVol - currentVolume) / steps;
 
-                await Task.Delay(stepDelay, token);
-            }
+                for (int i = 0; i < steps; i++)
+                {
+                    if (token.IsCancellationRequested || _audioFileReader == null)
+                        return;
+
+                    currentVolume += volumeStep;
+                    _audioFileReader.Volume = Math.Clamp(currentVolume, 0f, 1f);
+
+                    await Task.Delay(stepDelay, token);
+                }
 
                 if (_audioFileReader != null && !token.IsCancellationRequested)
                 {
@@ -4889,37 +4924,8 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
             {
                 Debug.WriteLine($"Error during music fade: {ex.Message}");
             }
-            #else
-                if (targetVolume < 0.01f)
-                {
-                    if (_musicProcess != null && !_musicProcess.HasExited)
-                    {
-                        try
-                        {
-                            _musicProcess.Kill();
-                            Debug.WriteLine("Music paused (process killed)");
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Failed to pause music: {ex.Message}");
-                        }
-                    }
-                }
-                else if (targetVolume > 0.01f)
-                {
-                    if (_musicProcess == null || _musicProcess.HasExited)
-                    {
-                        if (!string.IsNullOrEmpty(LauncherMusicPath) && File.Exists(LauncherMusicPath))
-                        {
-                            PlayLauncherMusic(LauncherMusicPath);
-                            Debug.WriteLine("Music resumed");
-                        }
-                    }
-                }
-    
-                await Task.CompletedTask;
-            #endif
         }
+        #endif
 
         private void MainWindow_KeyDown(object? sender, KeyEventArgs e)
         {
