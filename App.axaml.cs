@@ -16,6 +16,8 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using GitHubLauncher.Core.Models;
+using GithubLauncher.Models;
 
 namespace GithubLauncher;
 
@@ -43,26 +45,8 @@ public class App : Application, INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
-    private class GitHubAsset
-    {
-        public string name { get; set; } = string.Empty;
-        public string browser_download_url { get; set; } = string.Empty;
-    }
 
-    private class GitHubRelease
-    {
-        public string tag_name { get; set; } = string.Empty;
-        public GitHubAsset[] assets { get; set; } = [];
-    }
 
-    private class UpdateCheckInfo
-    {
-        public DateTime LastCheckTime { get; set; }
-        public string LastKnownVersion { get; set; } = string.Empty;
-        public string CurrentVersion { get; set; } = string.Empty;
-        public string ETag { get; set; } = string.Empty;
-        public bool UpdateAvailable { get; set; }
-    }
 
     private class ProgressWindow : Window
     {
