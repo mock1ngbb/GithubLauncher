@@ -638,7 +638,7 @@ namespace GithubLauncher.Services
                 _cacheService.UpdateLastPlayedTime(game, gamesFolder);
 
                 var gameProcess = Process.Start(startInfo);
-                game.GameProcessStarted?.Invoke(gameProcess);
+                game.NotifyGameProcessStarted(gameProcess);
 
                 if (game.GameManager != null)
                 {

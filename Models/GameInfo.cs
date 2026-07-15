@@ -20,7 +20,8 @@ namespace GithubLauncher.Models
     public class GameInfo : INotifyPropertyChanged, IDisposable
     {
         private const string DefaultInstalledVersion = "v0.0.0";
-        internal Action<Process?>? GameProcessStarted;
+        public event Action<Process?>? GameProcessStarted;
+        public void NotifyGameProcessStarted(Process? process) => GameProcessStarted?.Invoke(process);
         private string? _latestVersion;
         private string? _installedVersion;
         private string? _preferredVersion;
