@@ -5779,14 +5779,7 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
         {
             try
             {
-                using var client = new HttpClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "GithubLauncher");
-
-                if (!string.IsNullOrEmpty(_settings?.GitHubApiToken))
-                {
-                    client.DefaultRequestHeaders.Add("Authorization", $"token {_settings.GitHubApiToken}");
-                }
-
+                using var client = HttpClientFactory.GetGitHubClient();
                 var url = $"https://api.github.com/repos/{repository}/releases/latest";
                 var response = await client.GetAsync(url);
 
