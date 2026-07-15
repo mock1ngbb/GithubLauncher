@@ -92,6 +92,17 @@ namespace GithubLauncher.Services
 
         // ── Playback control ───────────────────────────────────────────────
 
+        public void Play(string path, float volume)
+        {
+            Volume = volume;
+            PlayLauncherMusic(path);
+        }
+
+        public void Stop()
+        {
+            StopLauncherMusic();
+        }
+
         public void PlayLauncherMusic(string path)
         {
             try
@@ -288,6 +299,8 @@ namespace GithubLauncher.Services
                 Log.Error("Failed to stop launcher music", ex);
             }
         }
+
+        public async Task FadeAsync(float targetVolume, int durationMs) => await FadeMusicAsync(targetVolume, durationMs);
 
         public async Task FadeMusicAsync(float targetVolume, int durationMs)
         {

@@ -23,11 +23,6 @@ using System.Runtime.InteropServices;
 using Avalonia.Platform;
 using Avalonia.Markup.Xaml.Converters;
 
-
-#if WINDOWS
-using NAudio.Wave;
-#endif
-
 namespace GithubLauncher
 {
 using GithubLauncher.Services.Logging;
@@ -76,14 +71,8 @@ using GithubLauncher.Services.Logging;
                 }
             }
         }
-        private System.Threading.CancellationTokenSource? _fadeTaskCts = null;
         private const int FADE_DURATION_MS = 500;
-        #if WINDOWS
-        private IWavePlayer? _waveOut;
-        private AudioFileReader? _audioFileReader;
-        #endif
-        private Process? _musicProcess;
-        private bool _musicPausedByDeactivation = false;
+        private readonly MusicPlayerService _musicPlayer = new();
         private bool _launchedGameOwnsInput;
         private bool _trackingLaunchedGameProcess;
         private string _launcherMusicPath = string.Empty;
@@ -110,17 +99,7 @@ using GithubLauncher.Services.Logging;
                     _musicVolume = value;
                     OnPropertyChanged(nameof(MusicVolume));
 
-                #if WINDOWS
-                if (_audioFileReader != null)
-                {
-                    _audioFileReader.Volume = value;
-                }
-                #else
-                if (!string.IsNullOrEmpty(LauncherMusicPath) && File.Exists(LauncherMusicPath))
-                {
-                    PlayLauncherMusic(LauncherMusicPath);
-                }
-                #endif
+                _musicPlayer.Volume = value;
                 }
             }
         }
@@ -248,7 +227,8 @@ using GithubLauncher.Services.Logging;
                 {
                     _themeColorBrush = value;
                     OnPropertyChanged(nameof(ThemeColorBrush));
-                    UpdateThemeColors();
+                    if (_secondaryColorBrush != null)
+                        ThemeManager.UpdateThemeResources(this.Resources, _themeColorBrush.Color, _secondaryColorBrush.Color);
                 }
             }
         }
@@ -262,7 +242,8 @@ using GithubLauncher.Services.Logging;
                 {
                     _secondaryColorBrush = value;
                     OnPropertyChanged(nameof(SecondaryColorBrush));
-                    UpdateThemeColors();
+                    if (_themeColorBrush != null)
+                        ThemeManager.UpdateThemeResources(this.Resources, _themeColorBrush.Color, _secondaryColorBrush.Color);
                 }
             }
         }
@@ -286,7 +267,7 @@ using GithubLauncher.Services.Logging;
             // Initialize theme
             ThemeColorBrush = new SolidColorBrush(Color.Parse(_settings.PrimaryColor ?? "#18181b"));
             SecondaryColorBrush = new SolidColorBrush(Color.Parse(_settings.SecondaryColor ?? "#404040"));
-            UpdateThemeColors();
+            ThemeManager.UpdateThemeResources(this.Resources, _themeColorBrush.Color, _secondaryColorBrush.Color);
 
             _gameManager.UnhideAllGames();
             LoadCurrentVersion();
@@ -307,7 +288,7 @@ using GithubLauncher.Services.Logging;
             MusicVolume = _settings.MusicVolume;
             if (!string.IsNullOrEmpty(LauncherMusicPath) && File.Exists(LauncherMusicPath))
             {
-                PlayLauncherMusic(LauncherMusicPath);
+                _musicPlayer.Play(LauncherMusicPath, MusicVolume);
             }
 
             _inputService = new InputService(this, _settings);
@@ -336,60 +317,12 @@ using GithubLauncher.Services.Logging;
         }
 
         // Is Theme Color Light
-        private bool IsLightColor(Color color)
-        {
-            // Calculate perceived brightness using standard formula
-            double brightness = (0.299 * color.R + 0.587 * color.G + 0.114 * color.B) / 255;
-            return brightness > 0.5;
-        }
 
         // Theme Color Shades
-        private Color GetShadedColor(Color baseColor, double factor)
-        {
-            byte r = (byte)Math.Min(255, Math.Max(0, baseColor.R * factor));
-            byte g = (byte)Math.Min(255, Math.Max(0, baseColor.G * factor));
-            byte b = (byte)Math.Min(255, Math.Max(0, baseColor.B * factor));
-            return Color.FromRgb(r, g, b);
-        }
-
-        private void UpdateThemeColors()
-        {
-            if (_themeColorBrush == null || _secondaryColorBrush == null) return;
-
-            var primaryColor = _themeColorBrush.Color;
-            var secondaryColor = _secondaryColorBrush.Color;
-            var themeBase = new SolidColorBrush(primaryColor);
-            var themeLighter = new SolidColorBrush(GetShadedColor(primaryColor, 1.3));
-            var themeDarker = new SolidColorBrush(GetShadedColor(primaryColor, 0.7));
-            var themeBorder = new SolidColorBrush(secondaryColor);
-
-            var textColor = CalculateLuminance(primaryColor) > 0.5 ? Colors.Black : Colors.White;
-            var tintedText = new SolidColorBrush(BlendColors(textColor, secondaryColor, 0.08));
-            var tintedTextSecondary = new SolidColorBrush(
-                CalculateLuminance(primaryColor) > 0.5
-                    ? BlendColors(Color.FromRgb(70, 70, 70), secondaryColor, 0.15)
-                    : BlendColors(Color.FromRgb(200, 200, 200), secondaryColor, 0.15)
-            );
-
-            Resources["ThemeBase"] = themeBase;
-            Resources["ThemeLighter"] = themeLighter;
-            Resources["ThemeDarker"] = themeDarker;
-            Resources["ThemeBorder"] = themeBorder;
-            Resources["ThemeText"] = tintedText;
-            Resources["ThemeTextSecondary"] = tintedTextSecondary;
-
-            OnPropertyChanged(nameof(WindowBackground));
-        }
-
-        private double CalculateLuminance(Color color)
-        {
-            return (0.299 * color.R + 0.587 * color.G + 0.114 * color.B) / 255;
-        }
 
         // Color Picker Preset Dialog
         private async void ThemeColorPicker_Click(object sender, RoutedEventArgs e)
         {
-            // Simple color presets dialog
             var presets = new Dictionary<string, string>
             {
                 { "Black", "#000000" },
@@ -433,14 +366,11 @@ using GithubLauncher.Services.Logging;
                 { "Mint Green", "#98fb98" },
                 { "Bright Sea Foam", "#98ff98" }
             };
-
-            await ShowColorPresetsDialog(presets);
+            await ThemeManager.ShowColorPresetsDialog(presets, OnColorSelected);
         }
 
-        // Secondary Color Picker
         private async void SecondaryColorPicker_Click(object sender, RoutedEventArgs e)
         {
-            // Simple color presets dialog
             var presets = new Dictionary<string, string>
             {
                 { "Black", "#000000" },
@@ -463,384 +393,27 @@ using GithubLauncher.Services.Logging;
                 { "Indigo", "#6366f1" },
                 { "Pink", "#ec4899" } 
             };
-
-            await ShowColorPresetsDialog(presets, true);
+            await ThemeManager.ShowColorPresetsDialog(presets, OnColorSelected, true);
         }
 
-        private Color BlendColors(Color baseColor, Color blendColor, double blendAmount)
+        private void OnColorSelected(string hexColor, bool isSecondary)
         {
-            byte r = (byte)(baseColor.R * (1 - blendAmount) + blendColor.R * blendAmount);
-            byte g = (byte)(baseColor.G * (1 - blendAmount) + blendColor.G * blendAmount);
-            byte b = (byte)(baseColor.B * (1 - blendAmount) + blendColor.B * blendAmount);
-            return Color.FromRgb(r, g, b);
-        }
-
-        private async Task ShowColorPresetsDialog(Dictionary<string, string> presets, bool isSecondary = false)
-        {
-            await Dispatcher.UIThread.InvokeAsync(async () =>
+            if (isSecondary)
             {
-                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
-                    desktop.MainWindow != null)
-                {
-                    var stackPanel = new StackPanel { Margin = new Thickness(20), Spacing = 10 };
-
-                    // Add Custom Color button at the top
-                    var customButton = new Button
-                    {
-                        Content = "🎨 Custom Color Picker",
-                        HorizontalAlignment = HorizontalAlignment.Stretch,
-                        Height = 50,
-                        Background = new SolidColorBrush(Color.FromRgb(50, 50, 50)),
-                        Foreground = new SolidColorBrush(Colors.White),
-                        FontWeight = FontWeight.Bold
-                    };
-
-                    customButton.Click += async (s, e) =>
-                    {
-                        // Close presets dialog
-                        var window = (s as Button)?.GetVisualRoot() as Window;
-                        window?.Close();
-
-                        // Open custom color picker
-                        await ShowCustomColorPicker(isSecondary);
-                    };
-
-                    stackPanel.Children.Add(customButton);
-
-                    // Add separator
-                    stackPanel.Children.Add(new Border
-                    {
-                        Height = 1,
-                        Background = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
-                        Margin = new Thickness(0, 5, 0, 5)
-                    });
-
-                    foreach (var preset in presets)
-                    {
-                        var button = new Button
-                        {
-                            Content = preset.Key,
-                            HorizontalAlignment = HorizontalAlignment.Stretch,
-                            Height = 40,
-                            Background = new SolidColorBrush(Color.Parse(preset.Value)),
-                            Foreground = new SolidColorBrush(IsLightColor(Color.Parse(preset.Value)) ? Colors.Black : Colors.White),
-                            Tag = preset.Value
-                        };
-
-                        button.Click += (s, e) =>
-                        {
-                            var colorHex = (s as Button)?.Tag as string;
-                            if (!string.IsNullOrEmpty(colorHex))
-                            {
-                                if (isSecondary)
-                                {
-                                    _settings.SecondaryColor = colorHex;
-                                    SecondaryColorBrush = new SolidColorBrush(Color.Parse(colorHex));
-                                }
-                                else
-                                {
-                                    _settings.PrimaryColor = colorHex;
-                                    ThemeColorBrush = new SolidColorBrush(Color.Parse(colorHex));
-                                }
-                                OnSettingChanged();
-
-                                // Close the dialog after selection
-                                if (s is Button btn && btn.Parent != null)
-                                {
-                                    var window = btn.GetVisualRoot() as Window;
-                                    window?.Close();
-                                }
-                            }
-                        };
-
-                        stackPanel.Children.Add(button);
-                    }
-
-                    var messageBox = new Window
-                    {
-                        Title = isSecondary ? "Select Secondary Color" : "Select Primary Color",
-                        Width = 300,
-                        Height = 1000,
-                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                        Content = new ScrollViewer { Content = stackPanel }
-                    };
-
-                    await messageBox.ShowDialog(desktop.MainWindow);
-                }
-            });
-        }
-
-        private async Task ShowCustomColorPicker(bool isSecondary = false)
-        {
-            await Dispatcher.UIThread.InvokeAsync(async () =>
-            {
-                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
-                    desktop.MainWindow != null)
-                {
-                    var currentColor = isSecondary ? SecondaryColorBrush.Color : ThemeColorBrush.Color;
-                    var (h, s, l) = RgbToHsl(currentColor);
-
-                    var pickerPanel = new StackPanel { Margin = new Thickness(20), Spacing = 15 };
-
-                    // Preview box
-                    var previewBorder = new Border
-                    {
-                        Width = 260,
-                        Height = 60,
-                        CornerRadius = new CornerRadius(8),
-                        Background = new SolidColorBrush(currentColor),
-                        BorderBrush = new SolidColorBrush(Colors.White),
-                        BorderThickness = new Thickness(2)
-                    };
-                    pickerPanel.Children.Add(previewBorder);
-
-                    // HSL Sliders
-                    var hSlider = CreateHslSlider("Hue", h, 0, 360, "°");
-                    var sSlider = CreateHslSlider("Saturation", s, 0, 100, "%");
-                    var lSlider = CreateHslSlider("Lightness", l, 0, 100, "%");
-
-                    pickerPanel.Children.Add(hSlider.panel);
-                    pickerPanel.Children.Add(sSlider.panel);
-                    pickerPanel.Children.Add(lSlider.panel);
-
-                    // Update preview on slider change
-                    EventHandler<AvaloniaPropertyChangedEventArgs> updatePreview = (s, e) =>
-                    {
-                        var newColor = HslToRgb(hSlider.slider.Value, sSlider.slider.Value, lSlider.slider.Value);
-                        previewBorder.Background = new SolidColorBrush(newColor);
-                    };
-
-                    hSlider.slider.PropertyChanged += updatePreview;
-                    sSlider.slider.PropertyChanged += updatePreview;
-                    lSlider.slider.PropertyChanged += updatePreview;
-
-                    // Hex input
-                    var hexPanel = new StackPanel { Spacing = 5 };
-                    hexPanel.Children.Add(new TextBlock
-                    {
-                        Text = "Hex Color",
-                        Foreground = new SolidColorBrush(Colors.White),
-                        FontSize = 12
-                    });
-
-                    var hexBox = new TextBox
-                    {
-                        Text = $"#{currentColor.R:X2}{currentColor.G:X2}{currentColor.B:X2}",
-                        Watermark = "#RRGGBB",
-                        Foreground = new SolidColorBrush(Colors.White),
-                        Background = new SolidColorBrush(Color.FromRgb(40, 40, 40))
-                    };
-
-                    hexBox.TextChanged += (s, e) =>
-                    {
-                        try
-                        {
-                            var text = hexBox.Text?.Trim();
-                            if (!string.IsNullOrEmpty(text) && text.StartsWith("#") && text.Length == 7)
-                            {
-                                var color = Color.Parse(text);
-                                var (hue, sat, light) = RgbToHsl(color);
-                                hSlider.slider.Value = hue;
-                                sSlider.slider.Value = sat;
-                                lSlider.slider.Value = light;
-                            }
-                        }
-                        catch { }
-                    };
-
-                    // Update hex box when sliders change
-                    EventHandler<AvaloniaPropertyChangedEventArgs> updateHex = (s, e) =>
-                    {
-                        var color = HslToRgb(hSlider.slider.Value, sSlider.slider.Value, lSlider.slider.Value);
-                        hexBox.Text = $"#{color.R:X2}{color.G:X2}{color.B:X2}";
-                    };
-
-                    hSlider.slider.PropertyChanged += updateHex;
-                    sSlider.slider.PropertyChanged += updateHex;
-                    lSlider.slider.PropertyChanged += updateHex;
-
-                    hexPanel.Children.Add(hexBox);
-                    pickerPanel.Children.Add(hexPanel);
-
-                    // Buttons
-                    var buttonPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 10, 0, 0) };
-
-                    var applyButton = new Button
-                    {
-                        Content = "Apply",
-                        Width = 120,
-                        Height = 35,
-                        Background = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
-                        Foreground = new SolidColorBrush(Colors.White)
-                    };
-
-                    var cancelButton = new Button
-                    {
-                        Content = "Cancel",
-                        Width = 120,
-                        Height = 35,
-                        Background = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
-                        Foreground = new SolidColorBrush(Colors.White)
-                    };
-
-                    buttonPanel.Children.Add(applyButton);
-                    buttonPanel.Children.Add(cancelButton);
-                    pickerPanel.Children.Add(buttonPanel);
-
-                    var pickerWindow = new Window
-                    {
-                        Title = isSecondary ? "Custom Secondary Color" : "Custom Primary Color",
-                        Width = 320,
-                        Height = 480,
-                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                        Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
-                        Content = pickerPanel,
-                        CanResize = false
-                    };
-
-                    applyButton.Click += (s, e) =>
-                    {
-                        var finalColor = HslToRgb(hSlider.slider.Value, sSlider.slider.Value, lSlider.slider.Value);
-                        var hexColor = $"#{finalColor.R:X2}{finalColor.G:X2}{finalColor.B:X2}";
-
-                        if (isSecondary)
-                        {
-                            _settings.SecondaryColor = hexColor;
-                            SecondaryColorBrush = new SolidColorBrush(finalColor);
-                        }
-                        else
-                        {
-                            _settings.PrimaryColor = hexColor;
-                            ThemeColorBrush = new SolidColorBrush(finalColor);
-                        }
-                        OnSettingChanged();
-                        pickerWindow.Close();
-                    };
-
-                    cancelButton.Click += (s, e) => pickerWindow.Close();
-
-                    await pickerWindow.ShowDialog(desktop.MainWindow);
-                }
-            });
-        }
-
-        private (StackPanel panel, Slider slider) CreateHslSlider(string label, double initialValue, double min, double max, string unit)
-        {
-            var panel = new StackPanel { Spacing = 5 };
-
-            var headerPanel = new StackPanel { Orientation = Orientation.Horizontal };
-            headerPanel.Children.Add(new TextBlock
-            {
-                Text = label,
-                Foreground = new SolidColorBrush(Colors.White),
-                FontSize = 12,
-                Width = 80
-            });
-
-            var valueText = new TextBlock
-            {
-                Text = $"{(int)initialValue}{unit}",
-                Foreground = new SolidColorBrush(Colors.White),
-                FontSize = 12,
-                Width = 50,
-                TextAlignment = TextAlignment.Right
-            };
-            headerPanel.Children.Add(valueText);
-
-            panel.Children.Add(headerPanel);
-
-            var slider = new Slider
-            {
-                Minimum = min,
-                Maximum = max,
-                Value = initialValue,
-                Width = 260,
-                TickFrequency = 1,
-                IsSnapToTickEnabled = true
-            };
-
-            slider.PropertyChanged += (s, e) =>
-            {
-                if (e.Property.Name == "Value")
-                {
-                    valueText.Text = $"{(int)slider.Value}{unit}";
-                }
-            };
-
-            panel.Children.Add(slider);
-
-            return (panel, slider);
-        }
-
-        // Convert RGB to HSL
-        private (double h, double s, double l) RgbToHsl(Color color)
-        {
-            double r = color.R / 255.0;
-            double g = color.G / 255.0;
-            double b = color.B / 255.0;
-
-            double max = Math.Max(r, Math.Max(g, b));
-            double min = Math.Min(r, Math.Min(g, b));
-            double delta = max - min;
-
-            double h = 0;
-            double s = 0;
-            double l = (max + min) / 2.0;
-
-            if (delta != 0)
-            {
-                s = l > 0.5 ? delta / (2.0 - max - min) : delta / (max + min);
-
-                if (max == r)
-                    h = ((g - b) / delta + (g < b ? 6 : 0)) / 6.0;
-                else if (max == g)
-                    h = ((b - r) / delta + 2) / 6.0;
-                else
-                    h = ((r - g) / delta + 4) / 6.0;
-            }
-
-            return (h * 360, s * 100, l * 100);
-        }
-
-        // Convert HSL to RGB
-        private Color HslToRgb(double h, double s, double l)
-        {
-            h = h / 360.0;
-            s = s / 100.0;
-            l = l / 100.0;
-
-            double r, g, b;
-
-            if (s == 0)
-            {
-                r = g = b = l;
+                _settings.SecondaryColor = hexColor;
+                SecondaryColorBrush = new SolidColorBrush(Color.Parse(hexColor));
             }
             else
             {
-                double q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-                double p = 2 * l - q;
-
-                r = HueToRgb(p, q, h + 1.0 / 3.0);
-                g = HueToRgb(p, q, h);
-                b = HueToRgb(p, q, h - 1.0 / 3.0);
+                _settings.PrimaryColor = hexColor;
+                ThemeColorBrush = new SolidColorBrush(Color.Parse(hexColor));
             }
-
-            return Color.FromRgb(
-                (byte)Math.Round(r * 255),
-                (byte)Math.Round(g * 255),
-                (byte)Math.Round(b * 255)
-            );
+            OnSettingChanged();
         }
 
-        private double HueToRgb(double p, double q, double t)
-        {
-            if (t < 0) t += 1;
-            if (t > 1) t -= 1;
-            if (t < 1.0 / 6.0) return p + (q - p) * 6 * t;
-            if (t < 1.0 / 2.0) return q;
-            if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6;
-            return p;
-        }
+        // Convert RGB to HSL
+
+        // Convert HSL to RGB
 
         private void UpdateContinueButtonState()
         {
@@ -1932,7 +1505,7 @@ using GithubLauncher.Services.Logging;
                 // Initialize theme
                 ThemeColorBrush = new SolidColorBrush(Color.Parse(_settings?.PrimaryColor ?? "#18181b"));
                 SecondaryColorBrush = new SolidColorBrush(Color.Parse(_settings?.SecondaryColor ?? "#404040"));
-                UpdateThemeColors();
+                ThemeManager.UpdateThemeResources(this.Resources, _themeColorBrush.Color, _secondaryColorBrush.Color);
             }
         }
 
@@ -3295,13 +2868,13 @@ using GithubLauncher.Services.Logging;
                 _settings.LauncherMusicPath = LauncherMusicPath;
                 AppSettings.Save(_settings);
 
-                PlayLauncherMusic(LauncherMusicPath);
+                _musicPlayer.Play(LauncherMusicPath, MusicVolume);
             }
         }
 
         private void ClearLauncherMusic_Click(object sender, RoutedEventArgs e)
         {
-            StopLauncherMusic();
+            _musicPlayer.Stop();
             LauncherMusicPath = string.Empty;
             _settings.LauncherMusicPath = string.Empty;
             AppSettings.Save(_settings);
@@ -4651,286 +4224,6 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
             }
         }
 
-        private void PlayLauncherMusic(string path)
-        {
-            try
-            {
-                if (!File.Exists(path))
-                    return;
-
-                StopLauncherMusic();
-
-                // Use runtime detection
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                    PlayMusicWindows(path);
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                    PlayMusicLinux(path);
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                    PlayMusicMac(path);
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Failed to play launcher music: {ex.Message}");
-            }
-        }
-
-        private void PlayMusicWindows(string path)
-        {
-            #if WINDOWS
-            try
-            {
-                _audioFileReader = new AudioFileReader(path);
-                _audioFileReader.Volume = MusicVolume;
-
-                _waveOut = new WaveOutEvent();
-                _waveOut.Init(_audioFileReader);
-
-                // Enable looping
-                _waveOut.PlaybackStopped += (sender, args) =>
-                {
-                    if (_audioFileReader != null && _waveOut != null)
-                    {
-                        _audioFileReader.Position = 0;
-                        _waveOut.Play();
-                    }
-                };
-
-                _waveOut.Play();
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"NAudio playback failed: {ex.Message}");
-            }
-        #else
-            Log.Warn("Windows audio playback not available on this platform");
-        #endif
-        }
-
-        private void PlayMusicLinux(string path)
-        {
-            string[] players = { "ffplay", "mpv", "cvlc", "mplayer" };
-
-            foreach (var player in players)
-            {
-                try
-                {
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = player,
-                        Arguments = player switch
-                        {
-                            "ffplay" => $"-nodisp -autoexit -loop 0 -volume {(int)(MusicVolume * 100)} \"{path}\"",
-                            "mpv" => $"--no-video --loop=inf --volume={MusicVolume * 100} \"{path}\"",
-                            "cvlc" => $"--no-video --loop --volume {(int)(MusicVolume * 512)} \"{path}\"",
-                            "mplayer" => $"-loop 0 -volume {(int)(MusicVolume * 100)} \"{path}\"",
-                            _ => $"\"{path}\""
-                        },
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true
-                    };
-
-                    _musicProcess = Process.Start(psi);
-                    if (_musicProcess != null)
-                    {
-                        _musicProcess.EnableRaisingEvents = true;
-                        Log.Info($"Playing music with {player}");
-                        return;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"Failed to start {player}: {ex.Message}");
-                    continue;
-                }
-            }
-
-            Log.Warn("No suitable audio player found on Linux. Install one of: ffplay, mpv, vlc, mplayer");
-        }
-
-        private void PlayMusicMac(string path)
-        {
-            try
-            {
-                // afplay volume is 0-255 (0-1 range needs to be converted)
-                var volumeValue = MusicVolume * 255f;
-
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "afplay",
-                    Arguments = $"-v {volumeValue} \"{path}\"",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                };
-
-                _musicProcess = Process.Start(psi);
-
-                if (_musicProcess != null)
-                {
-                    _musicProcess.EnableRaisingEvents = true;
-                    _musicProcess.Exited += (s, e) =>
-                    {
-                        if (!string.IsNullOrEmpty(LauncherMusicPath) && File.Exists(LauncherMusicPath))
-                        {
-                            try
-                            {
-                                Dispatcher.UIThread.Post(() =>
-                                {
-                                    if (!string.IsNullOrEmpty(LauncherMusicPath))
-                                    {
-                                        PlayMusicMac(LauncherMusicPath);
-                                    }
-                                });
-                            }
-                            catch (Exception ex)
-                            {
-                                Log.Error($"Failed to restart music: {ex.Message}");
-                            }
-                        }
-                    };
-
-                    Log.Info($"Playing music with afplay at volume {volumeValue}");
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"afplay failed: {ex.Message}");
-            }
-        }
-
-        private void StopLauncherMusic()
-        {
-            try
-            {
-                #if WINDOWS
-                if (_waveOut != null)
-                {
-                    _waveOut.Stop();
-                    _waveOut.Dispose();
-                    _waveOut = null;
-                }
-
-                if (_audioFileReader != null)
-                {
-                    _audioFileReader.Dispose();
-                    _audioFileReader = null;
-                }
-                #endif
-
-                if (_musicProcess != null)
-                {
-                    try
-                    {
-                        if (!_musicProcess.HasExited)
-                        {
-                            _musicProcess.Kill();
-                        }
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        // Process already exited, ignore
-                    }
-
-                    _musicProcess.Dispose();
-                    _musicProcess = null;
-                }
-
-                _musicPausedByDeactivation = false;
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Failed to stop launcher music: {ex.Message}");
-            }
-        }
-
-        private Task FadeMusicAsync(float targetVolume, int durationMs)
-        {
-        #if WINDOWS
-            return FadeMusicWindowsAsync(targetVolume, durationMs);
-        #else
-            if (targetVolume < 0.01f)
-            {
-                if (_musicProcess != null && !_musicProcess.HasExited)
-                {
-                    try
-                    {
-                        _musicProcess.Kill();
-                        Log.Debug("Music paused (process killed)");
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error($"Failed to pause music: {ex.Message}");
-                    }
-                }
-            }
-            else if (targetVolume > 0.01f)
-            {
-                if (_musicProcess == null || _musicProcess.HasExited)
-                {
-                    if (!string.IsNullOrEmpty(LauncherMusicPath) && File.Exists(LauncherMusicPath))
-                    {
-                        PlayLauncherMusic(LauncherMusicPath);
-                        Log.Debug("Music resumed");
-                    }
-                }
-            }
-
-            return Task.CompletedTask;
-        #endif
-        }
-
-        #if WINDOWS
-        private async Task FadeMusicWindowsAsync(float targetVolume, int durationMs)
-        {
-            if (_audioFileReader == null)
-                return;
-
-            _fadeTaskCts?.Cancel();
-            _fadeTaskCts = new System.Threading.CancellationTokenSource();
-            var token = _fadeTaskCts.Token;
-
-            try
-            {
-                float currentVolume = _audioFileReader.Volume;
-                float targetVol = targetVolume;
-
-                if (Math.Abs(currentVolume - targetVol) < 0.001f)
-                    return;
-
-                int steps = 20;
-                int stepDelay = durationMs / steps;
-                float volumeStep = (targetVol - currentVolume) / steps;
-
-                for (int i = 0; i < steps; i++)
-                {
-                    if (token.IsCancellationRequested || _audioFileReader == null)
-                        return;
-
-                    currentVolume += volumeStep;
-                    _audioFileReader.Volume = Math.Clamp(currentVolume, 0f, 1f);
-
-                    await Task.Delay(stepDelay, token);
-                }
-
-                if (_audioFileReader != null && !token.IsCancellationRequested)
-                {
-                    _audioFileReader.Volume = targetVol;
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // Fade was cancelled
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error during music fade: {ex.Message}");
-            }
-        }
-        #endif
-
         private void MainWindow_KeyDown(object? sender, KeyEventArgs e)
         {
             if (_isProcessingInput || !IsActive)
@@ -5103,9 +4396,7 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
             this.Deactivated -= MainWindow_Deactivated;
 
             // Stop Launcher Music
-            _fadeTaskCts?.Cancel();
-            _fadeTaskCts?.Dispose();
-            StopLauncherMusic();
+            _musicPlayer.Stop();
 
             if (_inputService != null)
             {
@@ -5117,8 +4408,7 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
 
         protected override void OnClosing(WindowClosingEventArgs e)
         {
-            _fadeTaskCts?.Cancel();
-            StopLauncherMusic();
+            _musicPlayer.Stop();
             base.OnClosing(e);
         }
 
@@ -5135,15 +4425,7 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
                 _inputService?.SetGamepadEnabled(true);
             }
 
-            #if WINDOWS
-                        _ = FadeMusicAsync(MusicVolume, FADE_DURATION_MS);
-            #else
-                if (_musicPausedByDeactivation)
-                {
-                    _musicPausedByDeactivation = false;
-                    _ = FadeMusicAsync(MusicVolume, FADE_DURATION_MS);
-                }
-            #endif
+            _ = _musicPlayer.FadeAsync(MusicVolume, FADE_DURATION_MS);
         }
 
         private void MainWindow_Deactivated(object? sender, EventArgs e)
@@ -5151,15 +4433,7 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
             _inputService?.SetWindowActive(false);
             _inputService?.SetGamepadEnabled(false);
 
-            #if WINDOWS
-                        _ = FadeMusicAsync(0f, FADE_DURATION_MS);
-            #else
-                if (_musicProcess != null && !_musicProcess.HasExited)
-                {
-                    _musicPausedByDeactivation = true;
-                    _ = FadeMusicAsync(0f, FADE_DURATION_MS);
-                }
-            #endif
+            _ = _musicPlayer.FadeAsync(0f, FADE_DURATION_MS);
         }
 
         private void SubscribeToGameEvents(GameInfo game)
@@ -5355,427 +4629,13 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
 
                 if (changelogContent != null)
                 {
-                    changelogContent.ItemsSource = ParseMarkdown(changelogText);
+                    changelogContent.ItemsSource = MarkdownParser.ParseMarkdown(changelogText);
                 }
             }
             catch (Exception ex)
             {
                 await ShowMessageBoxAsync($"Failed to load changelog: {ex.Message}", "Error");
                 CloseChangelog();
-            }
-        }
-
-        private List<Control> ParseMarkdown(string markdown)
-        {
-            var controls = new List<Control>();
-            if (string.IsNullOrWhiteSpace(markdown))
-            {
-                controls.Add(new SelectableTextBlock
-                {
-                    Text = "No changelog available.",
-                    Foreground = new SolidColorBrush(Color.Parse("#B8B8B8")),
-                    FontSize = 14
-                });
-                return controls;
-            }
-
-            var lines = markdown.Split('\n');
-            var listItems = new List<string>();
-            var codeBlockLines = new List<string>();
-            bool inCodeBlock = false;
-
-            for (int i = 0; i < lines.Length; i++)
-            {
-                var line = lines[i].TrimEnd('\r');
-
-                // Code blocks
-                if (line.TrimStart().StartsWith("```"))
-                {
-                    if (inCodeBlock)
-                    {
-                        if (codeBlockLines.Count > 0)
-                        {
-                            var codeBlock = new Border
-                            {
-                                Background = new SolidColorBrush(Color.Parse("#1e1e1e")),
-                                BorderBrush = new SolidColorBrush(Color.Parse("#2d2d30")),
-                                BorderThickness = new Thickness(1),
-                                CornerRadius = new CornerRadius(4),
-                                Padding = new Thickness(12),
-                                Margin = new Thickness(0, 8, 0, 8)
-                            };
-                            codeBlock.Child = new SelectableTextBlock
-                            {
-                                Text = string.Join("\n", codeBlockLines),
-                                FontFamily = new FontFamily("Consolas,Courier New,monospace"),
-                                FontSize = 13,
-                                Foreground = new SolidColorBrush(Color.Parse("#d4d4d4"))
-                            };
-                            controls.Add(codeBlock);
-                            codeBlockLines.Clear();
-                        }
-                        inCodeBlock = false;
-                    }
-                    else
-                    {
-                        FlushListItems(controls, listItems);
-                        inCodeBlock = true;
-                    }
-                    continue;
-                }
-
-                if (inCodeBlock)
-                {
-                    codeBlockLines.Add(line);
-                    continue;
-                }
-
-                // GitHub alerts: > [!NOTE], etc.
-                var alertMatch = System.Text.RegularExpressions.Regex.Match(line.TrimStart(),
-                    @"^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]",
-                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-                if (alertMatch.Success)
-                {
-                    FlushListItems(controls, listItems);
-
-                    var alertType = alertMatch.Groups[1].Value.ToUpper();
-                    var alertContentLines = new List<string>();
-
-                    // Move to the first line of content
-                    i++;
-
-                    // Collect all lines belonging to the alert block
-                    while (i < lines.Length)
-                    {
-                        var nextLine = lines[i].TrimEnd('\r');
-
-                        // Stop if the line is empty
-                        if (string.IsNullOrWhiteSpace(nextLine))
-                        {
-                            break;
-                        }
-
-                        var trimmedLine = nextLine.TrimStart();
-
-                        if (trimmedLine.StartsWith(">"))
-                        {
-                            // Standard blockquote line: strip the '>'
-                            var content = trimmedLine.Substring(1);
-                            if (content.StartsWith(" ")) content = content.Substring(1);
-                            alertContentLines.Add(content);
-                        }
-                        else
-                        {
-                            // Lazy continuation
-                            alertContentLines.Add(trimmedLine);
-                        }
-                        i++;
-                    }
-
-                    // Define colors and icon names
-                    var (borderColorHex, iconPath) = alertType switch
-                    {
-                        "NOTE" => ("#0969da", "markdown_info.png"),
-                        "TIP" => ("#1a7f37", "markdown_tip.png"),
-                        "IMPORTANT" => ("#8250df", "markdown_important.png"),
-                        "WARNING" => ("#9a6700", "markdown_warning.png"),
-                        "CAUTION" => ("#d1242f", "markdown_caution.png"),
-                        _ => ("#2d2d30", "markdown_info.png")
-                    };
-
-                    var alertColor = Color.Parse(borderColorHex);
-                    var alertBrush = new SolidColorBrush(alertColor);
-
-                    var alertBorder = new Border
-                    {
-                        BorderBrush = alertBrush,
-                        BorderThickness = new Thickness(4, 0, 0, 0),
-                        CornerRadius = new CornerRadius(4),
-                        Padding = new Thickness(16, 12, 16, 12),
-                        Margin = new Thickness(0, 8, 0, 8),
-                        Background = new SolidColorBrush(alertColor) { Opacity = 0.05 }
-                    };
-
-                    var alertPanel = new StackPanel();
-
-                    // Title row with icon tinted to border color
-                    var titlePanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
-
-                    try
-                    {
-                        // Use a Rectangle + OpacityMask to draw the icon in the alert's color
-                        var iconRect = new Avalonia.Controls.Shapes.Rectangle
-                        {
-                            Width = 16,
-                            Height = 16,
-                            Margin = new Thickness(0, 0, 8, 0),
-                            Fill = alertBrush,
-                            VerticalAlignment = VerticalAlignment.Center,
-                            OpacityMask = new ImageBrush
-                            {
-                                Source = new Avalonia.Media.Imaging.Bitmap(
-                                    Avalonia.Platform.AssetLoader.Open(
-                                        new Uri($"avares://GithubLauncher/Assets/{iconPath}")))
-                            }
-                        };
-                        titlePanel.Children.Add(iconRect);
-                    }
-                    catch (Exception)
-                    {
-                        // Fallback circle if icon load fails
-                        titlePanel.Children.Add(new Avalonia.Controls.Shapes.Ellipse
-                        {
-                            Width = 8,
-                            Height = 8,
-                            Fill = alertBrush,
-                            Margin = new Thickness(0, 0, 8, 0)
-                        });
-                    }
-
-                    titlePanel.Children.Add(new SelectableTextBlock
-                    {
-                        Text = alertType,
-                        FontSize = 14,
-                        FontWeight = FontWeight.Bold,
-                        Foreground = alertBrush,
-                        VerticalAlignment = VerticalAlignment.Center
-                    });
-
-                    alertPanel.Children.Add(titlePanel);
-
-                    // Parse the inner content for markdown (bold, links, etc.)
-                    var contentText = string.Join("\n", alertContentLines);
-                    var contentBlocks = ParseInlineMarkdown(contentText);
-                    foreach (var block in contentBlocks)
-                    {
-                        block.Margin = new Thickness(0, 2, 0, 2);
-                        alertPanel.Children.Add(block);
-                    }
-
-                    alertBorder.Child = alertPanel;
-                    controls.Add(alertBorder);
-                    continue;
-                }
-
-                // Headers
-                if (line.StartsWith("#"))
-                {
-                    FlushListItems(controls, listItems);
-                    int level = 0;
-                    while (level < line.Length && line[level] == '#') level++;
-                    var headerText = line.Substring(level).Trim();
-                    var fontSize = level switch { 1 => 24, 2 => 20, 3 => 18, 4 => 16, _ => 14 };
-                    var fontWeight = level <= 2 ? FontWeight.Bold : FontWeight.SemiBold;
-
-                    controls.Add(new SelectableTextBlock
-                    {
-                        Text = headerText,
-                        FontSize = fontSize,
-                        FontWeight = fontWeight,
-                        Foreground = new SolidColorBrush(Colors.White),
-                        Margin = new Thickness(0, level == 1 ? 16 : 12, 0, 8)
-                    });
-                    continue;
-                }
-
-                // Lists
-                if (line.TrimStart().StartsWith("* ") || line.TrimStart().StartsWith("- "))
-                {
-                    var itemText = line.TrimStart().Substring(2);
-                    listItems.Add("• " + itemText);
-                    continue;
-                }
-
-                var orderedMatch = System.Text.RegularExpressions.Regex.Match(line.TrimStart(), @"^(\d+)\.\s+(.+)");
-                if (orderedMatch.Success)
-                {
-                    listItems.Add(orderedMatch.Groups[1].Value + ". " + orderedMatch.Groups[2].Value);
-                    continue;
-                }
-
-                if (string.IsNullOrWhiteSpace(line) || line.Trim().StartsWith("---"))
-                {
-                    FlushListItems(controls, listItems);
-                    if (line.Trim().StartsWith("---"))
-                        controls.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.Parse("#2d2d30")), Margin = new Thickness(0, 12, 0, 12) });
-                    continue;
-                }
-
-                FlushListItems(controls, listItems);
-                if (!string.IsNullOrWhiteSpace(line))
-                {
-                    var blocks = ParseInlineMarkdown(line);
-                    foreach (var block in blocks)
-                    {
-                        block.Margin = new Thickness(0, 0, 0, 8);
-                        controls.Add(block);
-                    }
-                }
-            }
-
-            FlushListItems(controls, listItems);
-            return controls;
-        }
-
-        private List<Control> ParseInlineMarkdown(string text)
-        {
-            var blocks = new List<Control>();
-            var panel = new WrapPanel { Orientation = Orientation.Horizontal };
-
-            int i = 0;
-            var currentText = new StringBuilder();
-
-            void FlushText()
-            {
-                if (currentText.Length > 0)
-                {
-                    panel.Children.Add(new SelectableTextBlock
-                    {
-                        Text = currentText.ToString(),
-                        FontSize = 14,
-                        Foreground = new SolidColorBrush(Color.Parse("#B8B8B8")),
-                        VerticalAlignment = VerticalAlignment.Center,
-                        TextWrapping = TextWrapping.Wrap
-                    });
-                    currentText.Clear();
-                }
-            }
-
-            void AddLineBreak()
-            {
-                // Add all current panel content to blocks
-                if (panel.Children.Count > 0)
-                {
-                    blocks.Add(panel);
-                    panel = new WrapPanel { Orientation = Orientation.Horizontal };
-                }
-            }
-
-            while (i < text.Length)
-            {
-                // Check for line breaks
-                if (text[i] == '\n' || text[i] == '\r')
-                {
-                    FlushText();
-                    AddLineBreak();
-
-                    // Skip \r\n or \n\r combinations
-                    if (i + 1 < text.Length && (text[i + 1] == '\n' || text[i + 1] == '\r') && text[i] != text[i + 1])
-                    {
-                        i++;
-                    }
-                    i++;
-                    continue;
-                }
-
-                // Bold **text**
-                if (i < text.Length - 1 && text[i] == '*' && text[i + 1] == '*')
-                {
-                    FlushText();
-                    i += 2;
-                    var boldText = new StringBuilder();
-                    while (i < text.Length - 1 && !(text[i] == '*' && text[i + 1] == '*')) { boldText.Append(text[i]); i++; }
-                    if (i < text.Length - 1) i += 2;
-                    panel.Children.Add(new SelectableTextBlock
-                    {
-                        Text = boldText.ToString(),
-                        FontWeight = FontWeight.Bold,
-                        Foreground = new SolidColorBrush(Colors.White),
-                        FontSize = 14,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        TextWrapping = TextWrapping.Wrap
-                    });
-                    continue;
-                }
-
-                // Inline code `text`
-                if (text[i] == '`')
-                {
-                    FlushText();
-                    i++;
-                    var codeText = new StringBuilder();
-                    while (i < text.Length && text[i] != '`') { codeText.Append(text[i]); i++; }
-                    if (i < text.Length) i++;
-                    panel.Children.Add(new SelectableTextBlock
-                    {
-                        Text = codeText.ToString(),
-                        FontFamily = new FontFamily("Consolas,Courier New,monospace"),
-                        Foreground = new SolidColorBrush(Color.Parse("#d4d4d4")),
-                        FontSize = 14,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        TextWrapping = TextWrapping.Wrap
-                    });
-                    continue;
-                }
-
-                // Links [text](url)
-                if (text[i] == '[')
-                {
-                    var linkMatch = System.Text.RegularExpressions.Regex.Match(text.Substring(i), @"^\[([^\]]+)\]\(([^\)]+)\)");
-                    if (linkMatch.Success)
-                    {
-                        FlushText();
-                        var linkText = linkMatch.Groups[1].Value;
-                        var linkUrl = linkMatch.Groups[2].Value;
-
-                        var linkButton = new Button
-                        {
-                            Content = linkText,
-                            Foreground = new SolidColorBrush(Color.Parse("#0969da")),
-                            Background = Brushes.Transparent,
-                            BorderThickness = new Thickness(0),
-                            Padding = new Thickness(0),
-                            Cursor = new Cursor(StandardCursorType.Hand),
-                            FontSize = 14,
-                            VerticalAlignment = VerticalAlignment.Center,
-                            Tag = linkUrl
-                        };
-
-                        linkButton.Click += (s, e) =>
-                        {
-                            if (linkButton.Tag is string url)
-                            {
-                                try { OpenUrl(url); } catch { }
-                            }
-                        };
-
-                        panel.Children.Add(linkButton);
-                        i += linkMatch.Length;
-                        continue;
-                    }
-                }
-
-                currentText.Append(text[i]);
-                i++;
-            }
-
-            FlushText();
-
-            if (panel.Children.Count > 0)
-            {
-                blocks.Add(panel);
-            }
-
-            return blocks;
-        }
-
-        private void FlushListItems(List<Control> controls, List<string> listItems)
-        {
-            if (listItems.Count > 0)
-            {
-                var listPanel = new StackPanel { Margin = new Thickness(0, 4, 0, 8) };
-                foreach (var item in listItems)
-                {
-                    var blocks = ParseInlineMarkdown(item);
-                    foreach (var block in blocks)
-                    {
-                        block.Margin = new Thickness(0, 2, 0, 2);
-                        listPanel.Children.Add(block);
-                    }
-                }
-                controls.Add(listPanel);
-                listItems.Clear();
             }
         }
 
