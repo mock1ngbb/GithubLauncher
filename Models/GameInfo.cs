@@ -20,6 +20,7 @@ using System.Linq;
 namespace GithubLauncher.Models
 {
 
+using GithubLauncher.Services.Logging;
     public class GameInfo : INotifyPropertyChanged, IDisposable
     {
         private const string DefaultInstalledVersion = "v0.0.0";
@@ -538,7 +539,7 @@ namespace GithubLauncher.Models
         {
             if (string.IsNullOrEmpty(FolderName))
             {
-                System.Diagnostics.Debug.WriteLine($"Warning: FolderName is null or empty for game {Name}");
+                Log.Warn($"Warning: FolderName is null or empty for game {Name}");
                 Status = GameStatus.NotInstalled;
                 return;
             }
@@ -637,7 +638,7 @@ namespace GithubLauncher.Models
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error checking status for {Name}: {ex.Message}");
+                Log.Error($"Error checking status for {Name}: {ex.Message}");
                 Status = GameStatus.NotInstalled;
             }
             finally
@@ -910,7 +911,7 @@ namespace GithubLauncher.Models
                     }
                     catch (Exception deleteEx)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Warning: Failed to delete custom icon file {pathToDelete}: {deleteEx.Message}");
+                        Log.Warn($"Warning: Failed to delete custom icon file {pathToDelete}: {deleteEx.Message}");
                     }
                 }, DispatcherPriority.Background);
             }
@@ -946,7 +947,7 @@ namespace GithubLauncher.Models
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Failed to check/modify file attributes for {iconPath}: {ex.Message}");
+                        Log.Error($"Failed to check/modify file attributes for {iconPath}: {ex.Message}");
                     }
 
                     CustomIconPath = iconPath;
@@ -965,12 +966,12 @@ namespace GithubLauncher.Models
                 var gamePath = GetInstallPath(gamesFolder);
                 var selectedExePath = Path.Combine(gamePath, "selected_executable.txt");
                 File.WriteAllText(selectedExePath, executablePath);
-                System.Diagnostics.Debug.WriteLine($"Saved selected executable for {Name}: {executablePath}");
+                Log.Info($"Saved selected executable for {Name}: {executablePath}");
                 OnPropertyChanged(nameof(HasStoredExecutable));
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to save selected executable for {Name}: {ex.Message}");
+                Log.Error($"Failed to save selected executable for {Name}: {ex.Message}");
                 _ = ShowMessageBoxAsync($"Failed to save executable selection: {ex.Message}", "Error");
             }
         }
@@ -990,7 +991,7 @@ namespace GithubLauncher.Models
                     var savedPath = File.ReadAllText(selectedExePath).Trim();
                     if (File.Exists(savedPath))
                     {
-                        System.Diagnostics.Debug.WriteLine($"Loaded selected executable for {Name}: {savedPath}");
+                        Log.Debug($"Loaded selected executable for {Name}: {savedPath}");
                         return savedPath;
                     }
                     else
@@ -1002,7 +1003,7 @@ namespace GithubLauncher.Models
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to load selected executable for {Name}: {ex.Message}");
+                Log.Error($"Failed to load selected executable for {Name}: {ex.Message}");
                 _ = ShowMessageBoxAsync($"Failed to load saved executable preference: {ex.Message}", "Error");
             }
 
@@ -1022,7 +1023,7 @@ namespace GithubLauncher.Models
                 if (File.Exists(selectedExePath))
                 {
                     File.Delete(selectedExePath);
-                    System.Diagnostics.Debug.WriteLine($"Cleared selected executable for {Name}");
+                    Log.Debug($"Cleared selected executable for {Name}");
                 }
 
                 SelectedExecutable = null;
@@ -1030,7 +1031,7 @@ namespace GithubLauncher.Models
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to clear selected executable for {Name}: {ex.Message}");
+                Log.Error($"Failed to clear selected executable for {Name}: {ex.Message}");
                 _ = ShowMessageBoxAsync($"Failed to clear executable selection: {ex.Message}", "Error");
             }
         }
@@ -1075,7 +1076,7 @@ namespace GithubLauncher.Models
                         {
                             _cachedDefaultIconPath = cachedIconPath;
                             OnPropertyChanged(nameof(IconUrl));
-                            System.Diagnostics.Debug.WriteLine($"Using cached icon for {Name}: {cachedIconPath}");
+                            Log.Info($"Using cached icon for {Name}: {cachedIconPath}");
                             return;
                         }
                     }
@@ -1087,7 +1088,7 @@ namespace GithubLauncher.Models
                 }
 
                 // Download icon if not cached
-                System.Diagnostics.Debug.WriteLine($"Downloading icon for {Name} from {defaultUrl}");
+                Log.Info($"Downloading icon for {Name} from {defaultUrl}");
 
                 using var httpClient = HttpClientFactory.GetDownloadClient();
                 httpClient.Timeout = TimeSpan.FromSeconds(10);
@@ -1099,11 +1100,11 @@ namespace GithubLauncher.Models
                 await File.WriteAllBytesAsync(cachedIconPath, iconData);
                 _cachedDefaultIconPath = cachedIconPath;
                 OnPropertyChanged(nameof(IconUrl));
-                System.Diagnostics.Debug.WriteLine($"Icon cached for {Name}: {cachedIconPath}");
+                Log.Debug($"Icon cached for {Name}: {cachedIconPath}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to cache icon for {Name}: {ex.Message}");
+                Log.Error($"Failed to cache icon for {Name}: {ex.Message}");
                 // Fallback to direct URL
             }
         }
@@ -1142,7 +1143,7 @@ namespace GithubLauncher.Models
                         GC.WaitForPendingFinalizers();
 
                         File.Delete(filePath);
-                        System.Diagnostics.Debug.WriteLine($"Successfully deleted file: {filePath}");
+                        Log.Debug($"Successfully deleted file: {filePath}");
                         return;
                     }
                     else
@@ -1152,7 +1153,7 @@ namespace GithubLauncher.Models
                 }
                 catch (IOException ex) when (i < maxRetries - 1)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Attempt {i + 1}/{maxRetries} failed to delete {filePath}: {ex.Message}");
+                    Log.Warn($"Attempt {i + 1}/{maxRetries} failed to delete {filePath}: {ex.Message}");
                     System.Threading.Thread.Sleep(delayMs * (i + 1));
 
                     GC.Collect();
@@ -1161,7 +1162,7 @@ namespace GithubLauncher.Models
                 }
                 catch (UnauthorizedAccessException ex) when (i < maxRetries - 1)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Attempt {i + 1}/{maxRetries} - Access denied for {filePath}: {ex.Message}");
+                    Log.Warn($"Attempt {i + 1}/{maxRetries} - Access denied for {filePath}: {ex.Message}");
 
                     try
                     {
@@ -1173,7 +1174,7 @@ namespace GithubLauncher.Models
                 }
             }
 
-            System.Diagnostics.Debug.WriteLine($"Unable to delete file after {maxRetries} attempts: {filePath}. File may be in use.");
+            Log.Warn($"Unable to delete file after {maxRetries} attempts: {filePath}. File may be in use.");
         }
 
         private async Task CheckLatestVersionAsync(HttpClient httpClient)
@@ -1185,7 +1186,7 @@ namespace GithubLauncher.Models
         {
             if (string.IsNullOrEmpty(Repository))
             {
-                System.Diagnostics.Debug.WriteLine($"Warning: Repository is null or empty for game {Name}");
+                Log.Warn($"Warning: Repository is null or empty for game {Name}");
                 return;
             }
 
@@ -1230,16 +1231,16 @@ namespace GithubLauncher.Models
                 }
                 else
                 {
-                    System.Diagnostics.Debug.WriteLine($"No releases found for {Repository}");
+                    Log.Warn($"No releases found for {Repository}");
                 }
             }
             catch (HttpRequestException ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Network error fetching latest version for {Repository}: {ex.Message}");
+                Log.Warn($"Network error fetching latest version for {Repository}: {ex.Message}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error fetching latest version for {Repository}: {ex.Message}");
+                Log.Error($"Error fetching latest version for {Repository}: {ex.Message}");
             }
         }
         private string GetGitHubApiToken()
@@ -1650,7 +1651,7 @@ namespace GithubLauncher.Models
                         }
                         catch (Exception ex)
                         {
-                            System.Diagnostics.Debug.WriteLine($"Failed to delete temp file {downloadPath}: {ex.Message}");
+                            Log.Error($"Failed to delete temp file {downloadPath}: {ex.Message}");
                         }
                     }
                 }
@@ -1738,7 +1739,7 @@ namespace GithubLauncher.Models
                         }
                         catch (Exception ex)
                         {
-                            System.Diagnostics.Debug.WriteLine($"Failed to open URL: {ex.Message}");
+                            Log.Error($"Failed to open URL: {ex.Message}");
                         }
                     };
 
@@ -1899,7 +1900,7 @@ namespace GithubLauncher.Models
         {
             return new GameInstallationOptions
             {
-                Log = message => Debug.WriteLine(message)
+                Log = message => global::GithubLauncher.Services.Logging.Log.Debug(message)
             };
         }
 
@@ -1935,7 +1936,7 @@ namespace GithubLauncher.Models
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Warning setting file attributes: {ex.Message}");
+                Log.Warn($"Warning setting file attributes: {ex.Message}");
             }
         }
 
@@ -1961,7 +1962,7 @@ namespace GithubLauncher.Models
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed while cleaning up directory '{dir}': {ex.Message}");
+                Log.Error($"Failed while cleaning up directory '{dir}': {ex.Message}");
             }
         }
 
@@ -2140,13 +2141,13 @@ namespace GithubLauncher.Models
                     if (process.ExitCode != 0)
                     {
                         string errorOutput = await process.StandardError.ReadToEndAsync();
-                        System.Diagnostics.Debug.WriteLine($"chmod failed for {executablePath}: {errorOutput}");
+                        Log.Error($"chmod failed for {executablePath}: {errorOutput}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to make file executable {executablePath}: {ex.Message}");
+                Log.Error($"Failed to make file executable {executablePath}: {ex.Message}");
             }
         }
 
@@ -2159,7 +2160,7 @@ namespace GithubLauncher.Models
             {
                 if (!Directory.Exists(gamePath))
                 {
-                    System.Diagnostics.Debug.WriteLine($"Cannot update LastPlayed: directory does not exist: {gamePath}");
+                    Log.Warn($"Cannot update LastPlayed: directory does not exist: {gamePath}");
                     return;
                 }
 
@@ -2169,11 +2170,11 @@ namespace GithubLauncher.Models
             }
             catch (UnauthorizedAccessException ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Permission denied updating LastPlayed.txt for {Name}: {ex.Message}");
+                Log.Warn($"Permission denied updating LastPlayed.txt for {Name}: {ex.Message}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to update LastPlayed.txt for {Name}: {ex.Message}");
+                Log.Error($"Failed to update LastPlayed.txt for {Name}: {ex.Message}");
             }
         }
 

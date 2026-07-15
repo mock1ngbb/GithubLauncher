@@ -5,6 +5,7 @@ using GitHubLauncher.Core.Models;
 
 namespace GithubLauncher
 {
+using GithubLauncher.Services.Logging;
     public class AppSettings
     {
         public bool FirstStartup { get; set; } = true;
@@ -57,7 +58,7 @@ namespace GithubLauncher
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to load settings: {ex.Message}");
+                Log.Error($"Failed to load settings: {ex.Message}");
             }
 
             return new AppSettings();
@@ -75,7 +76,7 @@ namespace GithubLauncher
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to save settings: {ex.Message}");
+                Log.Error($"Failed to save settings: {ex.Message}");
                 throw;
             }
         }

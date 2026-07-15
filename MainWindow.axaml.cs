@@ -30,6 +30,7 @@ using NAudio.Wave;
 
 namespace GithubLauncher
 {
+using GithubLauncher.Services.Logging;
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
         private readonly GameManager _gameManager;
@@ -324,11 +325,11 @@ namespace GithubLauncher
                 {
                     OnPropertyChanged(nameof(Games));
                     UpdateContinueButtonState();
-                    Debug.WriteLine($"Games collection changed. Count: {_gameManager.Games?.Count ?? 0}");
+                    Log.Debug($"Games collection changed. Count: {_gameManager.Games?.Count ?? 0}");
                     foreach (var game in _gameManager.Games ?? new())
                     {
                         SubscribeToGameEvents(game);
-                        Debug.WriteLine($"Game: {game.Name}, IconUrl: {game.IconUrl}");
+                        Log.Debug($"Game: {game.Name}, IconUrl: {game.IconUrl}");
                     }
                 }
             };
@@ -935,7 +936,7 @@ namespace GithubLauncher
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"Failed to parse update_check.json: {ex.Message}");
+                        Log.Error($"Failed to parse update_check.json: {ex.Message}");
                         // Fall through to version.txt check
                     }
                 }
@@ -954,7 +955,7 @@ namespace GithubLauncher
             catch (Exception ex)
             {
                 currentVersionString = "Unknown";
-                Debug.WriteLine($"Failed to load version: {ex.Message}");
+                Log.Error($"Failed to load version: {ex.Message}");
             }
         }
 
@@ -2784,11 +2785,11 @@ namespace GithubLauncher
         {
             if (_gameManager?.Games == null || _gameManager.Games.Count == 0)
             {
-                Debug.WriteLine("ApplySorting: No apps to sort");
+                Log.Debug("ApplySorting: No apps to sort");
                 return;
             }
 
-            Debug.WriteLine($"ApplySorting: Sorting {_gameManager.Games.Count} apps by {_currentSortBy}");
+            Log.Debug($"ApplySorting: Sorting {_gameManager.Games.Count} apps by {_currentSortBy}");
 
             List<GameInfo> sortedGames;
 
@@ -2834,7 +2835,7 @@ namespace GithubLauncher
                 _gameManager.Games.Add(game);
             }
 
-            Debug.WriteLine($"ApplySorting: Completed sorting");
+            Log.Debug($"ApplySorting: Completed sorting");
         }
 
         private DateTime GetLastPlayedTime(GameInfo game)
@@ -2859,7 +2860,7 @@ namespace GithubLauncher
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to read LastPlayed for {game.Name}: {ex.Message}");
+                Log.Error($"Failed to read LastPlayed for {game.Name}: {ex.Message}");
             }
 
             return DateTime.MinValue;
@@ -4038,11 +4039,11 @@ namespace GithubLauncher
                             try
                             {
                                 Directory.Move(oldPath, newPath);
-                                System.Diagnostics.Debug.WriteLine($"Renamed folder: {appToUpdate.FolderName} -> {folderName}");
+                                Log.Info($"Renamed folder: {appToUpdate.FolderName} -> {folderName}");
                             }
                             catch (Exception ex)
                             {
-                                System.Diagnostics.Debug.WriteLine($"Failed to rename folder {appToUpdate.FolderName}: {ex.Message}");
+                                Log.Error($"Failed to rename folder {appToUpdate.FolderName}: {ex.Message}");
                                 _ = ShowMessageBoxAsync($"Failed to rename folder {appToUpdate.FolderName}", $"{ex.Message}");
                             }
                         }
@@ -4362,7 +4363,7 @@ namespace GithubLauncher
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"FetchLatestCatalogTag failed: {ex.Message}");
+                Log.Error($"FetchLatestCatalogTag failed: {ex.Message}");
             }
             return string.Empty;
         }
@@ -4416,7 +4417,7 @@ namespace GithubLauncher
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"ParseCatalogJson failed: {ex.Message}");
+                Log.Error($"ParseCatalogJson failed: {ex.Message}");
             }
             return result;
         }
@@ -4669,7 +4670,7 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to play launcher music: {ex.Message}");
+                Log.Error($"Failed to play launcher music: {ex.Message}");
             }
         }
 
@@ -4698,10 +4699,10 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"NAudio playback failed: {ex.Message}");
+                Log.Error($"NAudio playback failed: {ex.Message}");
             }
         #else
-            Debug.WriteLine("Windows audio playback not available on this platform");
+            Log.Warn("Windows audio playback not available on this platform");
         #endif
         }
 
@@ -4734,18 +4735,18 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
                     if (_musicProcess != null)
                     {
                         _musicProcess.EnableRaisingEvents = true;
-                        Debug.WriteLine($"Playing music with {player}");
+                        Log.Info($"Playing music with {player}");
                         return;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Failed to start {player}: {ex.Message}");
+                    Log.Error($"Failed to start {player}: {ex.Message}");
                     continue;
                 }
             }
 
-            Debug.WriteLine("No suitable audio player found on Linux. Install one of: ffplay, mpv, vlc, mplayer");
+            Log.Warn("No suitable audio player found on Linux. Install one of: ffplay, mpv, vlc, mplayer");
         }
 
         private void PlayMusicMac(string path)
@@ -4786,17 +4787,17 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
                             }
                             catch (Exception ex)
                             {
-                                Debug.WriteLine($"Failed to restart music: {ex.Message}");
+                                Log.Error($"Failed to restart music: {ex.Message}");
                             }
                         }
                     };
 
-                    Debug.WriteLine($"Playing music with afplay at volume {volumeValue}");
+                    Log.Info($"Playing music with afplay at volume {volumeValue}");
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"afplay failed: {ex.Message}");
+                Log.Error($"afplay failed: {ex.Message}");
             }
         }
 
@@ -4841,7 +4842,7 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to stop launcher music: {ex.Message}");
+                Log.Error($"Failed to stop launcher music: {ex.Message}");
             }
         }
 
@@ -4857,11 +4858,11 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
                     try
                     {
                         _musicProcess.Kill();
-                        Debug.WriteLine("Music paused (process killed)");
+                        Log.Debug("Music paused (process killed)");
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"Failed to pause music: {ex.Message}");
+                        Log.Error($"Failed to pause music: {ex.Message}");
                     }
                 }
             }
@@ -4872,7 +4873,7 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
                     if (!string.IsNullOrEmpty(LauncherMusicPath) && File.Exists(LauncherMusicPath))
                     {
                         PlayLauncherMusic(LauncherMusicPath);
-                        Debug.WriteLine("Music resumed");
+                        Log.Debug("Music resumed");
                     }
                 }
             }
@@ -4925,7 +4926,7 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error during music fade: {ex.Message}");
+                Log.Error($"Error during music fade: {ex.Message}");
             }
         }
         #endif
@@ -5931,7 +5932,7 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to apply rounded corners: {ex.Message}");
+                Log.Error($"Failed to apply rounded corners: {ex.Message}");
             }
         }
 

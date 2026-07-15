@@ -5,6 +5,7 @@ using System.Text;
 
 namespace GithubLauncher
 {
+    using GithubLauncher.Services.Logging;
     /// <summary>
     /// Securely stores the GitHub API token using AES-256-GCM encryption.
     /// The encrypted blob is stored outside the app directory with restricted
@@ -82,7 +83,7 @@ namespace GithubLauncher
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"SecretStore: failed to write token: {ex.Message}");
+                Log.Debug($"SecretStore: failed to write token: {ex.Message}");
                 throw;
             }
         }
@@ -173,7 +174,7 @@ namespace GithubLauncher
             catch (PlatformNotSupportedException) { }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"SecretStore: failed to set permissions on {path}: {ex.Message}");
+                Log.Debug($"SecretStore: failed to set permissions on {path}: {ex.Message}");
             }
         }
     }

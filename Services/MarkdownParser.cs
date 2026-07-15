@@ -16,6 +16,7 @@ using System.Text.RegularExpressions;
 
 namespace GithubLauncher.Services
 {
+using GithubLauncher.Services.Logging;
     public static class MarkdownParser
     {
         /// <summary>
@@ -487,16 +488,16 @@ namespace GithubLauncher.Services
                 }
                 else if (OperatingSystem.IsLinux())
                 {
-                    Process.Start("xdg-open", $"\"{url}\"");
+                    Process.Start(new ProcessStartInfo("xdg-open") { ArgumentList = { url } });
                 }
                 else if (OperatingSystem.IsMacOS())
                 {
-                    Process.Start("open", $"\"{url}\"");
+                    Process.Start(new ProcessStartInfo("open") { ArgumentList = { url } });
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to open URL: {ex.Message}");
+                Log.Error($"Failed to open URL: {ex.Message}");
             }
         }
     }

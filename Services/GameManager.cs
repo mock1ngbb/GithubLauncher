@@ -10,6 +10,7 @@ using System.Threading;
 
 namespace GithubLauncher.Services
 {
+using GithubLauncher.Services.Logging;
     public class GameManager : INotifyPropertyChanged, IDisposable
     {
         private static readonly GithubLauncherProfile Profile = GithubLauncherProfile.Instance;
@@ -57,7 +58,7 @@ namespace GithubLauncher.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to load settings in GameManager: {ex.Message}");
+                Log.Error($"Failed to load settings in GameManager: {ex.Message}");
                 _settings = new AppSettings();
             }
 
@@ -77,7 +78,7 @@ namespace GithubLauncher.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to create directories: {ex.Message}");
+                Log.Error($"Failed to create directories: {ex.Message}");
             }
 
             LoadVersionString();
@@ -115,7 +116,7 @@ namespace GithubLauncher.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error during apps.json integrity check: {ex.Message}");
+                Log.Error($"Error during apps.json integrity check: {ex.Message}");
             }
         }
 
@@ -130,7 +131,7 @@ namespace GithubLauncher.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error loading version: {ex.Message}");
+                Log.Error($"Error loading version: {ex.Message}");
                 CurrentVersionString = "Version loading failed";
             }
         }
@@ -190,7 +191,7 @@ namespace GithubLauncher.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error reading {Path.GetFileName(path)}: {ex.Message}");
+                Log.Error($"Error reading {Path.GetFileName(path)}: {ex.Message}");
                 return [];
             }
         }
@@ -248,7 +249,7 @@ namespace GithubLauncher.Services
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Error parsing app: {ex.Message}");
+                    Log.Error($"Error parsing app: {ex.Message}");
                 }
             }
 
@@ -401,7 +402,7 @@ namespace GithubLauncher.Services
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Error checking status for {app.Name}: {ex.Message}");
+                        Log.Error($"Error checking status for {app.Name}: {ex.Message}");
                     }
                     finally
                     {
@@ -420,11 +421,11 @@ namespace GithubLauncher.Services
             {
                 var apps = await LoadAppsFromJsonAsync().ConfigureAwait(false);
                 await SaveAppsToJsonAsync(apps).ConfigureAwait(false);
-                System.Diagnostics.Debug.WriteLine($"Apps exported successfully to {_appsConfigPath}");
+                Log.Info($"Apps exported successfully to {_appsConfigPath}");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error exporting apps: {ex.Message}");
+                Log.Error($"Error exporting apps: {ex.Message}");
             }
         }
 
@@ -458,7 +459,7 @@ namespace GithubLauncher.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error updating apps folder: {ex.Message}");
+                Log.Error($"Error updating apps folder: {ex.Message}");
                 _appsFolder = Path.Combine(AppPaths.DataDirectory, Profile.DefaultInstallFolderName);
                 Directory.CreateDirectory(_appsFolder);
                 throw;
