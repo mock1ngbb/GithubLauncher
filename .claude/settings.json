@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "dotnet build",
+      "dotnet build --configuration *",
+      "dotnet run",
+      "dotnet run -- *",
+      "dotnet publish --configuration *",
+      "dotnet publish *",
+      "dotnet restore",
+      "dotnet clean",
+      "git add *",
+      "git commit *",
+      "git push origin wt/*",
+      "git push origin HEAD",
+      "git pull *",
+      "git status",
+      "git diff",
+      "git log",
+      "git checkout *",
+      "git branch *",
+      "git stash",
+      "git stash pop",
+      "git merge *",
+      "git rebase *",
+      "git reset *",
+      "git rm *",
+      "git mv *",
+      "mkdir *",
+      "cp ./* ./*",
+      "cp -r ./* ./*",
+      "mv ./* ./.*",
+      "mv ./* ./*",
+      "rm .worktrees/*",
+      "rm ./bin/*",
+      "rm ./obj/*",
+      "rmdir *"
+    ]
+  }
+}

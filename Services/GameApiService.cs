@@ -696,7 +696,7 @@ namespace GithubLauncher.Services
         {
             return new GameInstallationOptions
             {
-                Log = message => Debug.WriteLine(message)
+                Log = _ => { }
             };
         }
 
