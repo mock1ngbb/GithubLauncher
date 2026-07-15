@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 
 namespace GithubLauncher.Services
 {
+using GithubLauncher.Services.Logging;
     public static class ShortcutHelper
     {
         private static readonly string LauncherSteamTag = GithubLauncherProfile.Instance.SteamTag;
@@ -260,7 +261,7 @@ namespace GithubLauncher.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to convert icon: {ex.Message}");
+                Log.Error($"Failed to convert icon: {ex.Message}");
             }
         }
 

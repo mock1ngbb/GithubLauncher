@@ -4,6 +4,7 @@ using System.Net.Sockets;
 
 namespace GithubLauncher.Services
 {
+using GithubLauncher.Services.Logging;
     /// <summary>
     /// Centralized HTTP client factory providing configured HttpClient instances
     /// with automatic retry, rate-limit tracking, and consistent defaults.
@@ -107,7 +108,7 @@ namespace GithubLauncher.Services
             }
 
             if (Remaining < 10)
-                System.Diagnostics.Debug.WriteLine(
+                Log.Debug(
                     $"[RateLimit] Low: {Remaining}/{Limit} — resets at {ResetAt:HH:mm:ss}");
         }
     }
@@ -154,7 +155,7 @@ namespace GithubLauncher.Services
 
                 var delay = Backoff[Math.Min(attempt, Backoff.Length - 1)];
                 var jitter = TimeSpan.FromMilliseconds(_jitter.Next(-500, 500));
-                System.Diagnostics.Debug.WriteLine($"[RetryHandler] Attempt {attempt + 1} failed, retrying in {delay + jitter:g}");
+                Log.Debug($"[RetryHandler] Attempt {attempt + 1} failed, retrying in {delay + jitter:g}");
                 await Task.Delay(delay + jitter, ct);
             }
         }

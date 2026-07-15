@@ -13,6 +13,7 @@ using NAudio.Wave;
 
 namespace GithubLauncher.Services
 {
+using GithubLauncher.Services.Logging;
     public class MusicPlayerService : INotifyPropertyChanged
     {
         private const int FADE_DURATION_MS = 500;
@@ -108,7 +109,7 @@ namespace GithubLauncher.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to play launcher music: {ex.Message}");
+                Log.Error($"Failed to play launcher music: {ex.Message}");
             }
         }
 
@@ -138,10 +139,10 @@ namespace GithubLauncher.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"NAudio playback failed: {ex.Message}");
+                Log.Debug($"NAudio playback failed: {ex.Message}");
             }
             #else
-            Debug.WriteLine("Windows audio playback not available on this platform");
+            Log.Warn("Windows audio playback not available on this platform");
             #endif
         }
 
@@ -174,19 +175,19 @@ namespace GithubLauncher.Services
                     if (_musicProcess != null)
                     {
                         _musicProcess.EnableRaisingEvents = true;
-                        Debug.WriteLine($"Playing music with {player}");
+                        Log.Info($"Playing music with {player}");
                         MusicStarted?.Invoke();
                         return;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Failed to start {player}: {ex.Message}");
+                    Log.Error($"Failed to start {player}: {ex.Message}");
                     continue;
                 }
             }
 
-            Debug.WriteLine("No suitable audio player found on Linux. Install one of: ffplay, mpv, vlc, mplayer");
+            Log.Warn("No suitable audio player found on Linux. Install one of: ffplay, mpv, vlc, mplayer");
         }
 
         private void PlayMusicMac(string path)
@@ -226,18 +227,18 @@ namespace GithubLauncher.Services
                             }
                             catch (Exception ex)
                             {
-                                Debug.WriteLine($"Failed to restart music: {ex.Message}");
+                                Log.Error($"Failed to restart music: {ex.Message}");
                             }
                         }
                     };
 
-                    Debug.WriteLine($"Playing music with afplay at volume {volumeValue}");
+                    Log.Info($"Playing music with afplay at volume {volumeValue}");
                     MusicStarted?.Invoke();
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"afplay failed: {ex.Message}");
+                Log.Debug($"afplay failed: {ex.Message}");
             }
         }
 
@@ -283,7 +284,7 @@ namespace GithubLauncher.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to stop launcher music: {ex.Message}");
+                Log.Error($"Failed to stop launcher music: {ex.Message}");
             }
         }
 
@@ -331,7 +332,7 @@ namespace GithubLauncher.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error during music fade: {ex.Message}");
+                Log.Error($"Error during music fade: {ex.Message}");
             }
             #else
             if (targetVolume < 0.01f)
@@ -341,11 +342,11 @@ namespace GithubLauncher.Services
                     try
                     {
                         _musicProcess.Kill();
-                        Debug.WriteLine("Music paused (process killed)");
+                        Log.Debug("Music paused (process killed)");
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"Failed to pause music: {ex.Message}");
+                        Log.Error($"Failed to pause music: {ex.Message}");
                     }
                 }
             }
@@ -356,7 +357,7 @@ namespace GithubLauncher.Services
                     if (!string.IsNullOrEmpty(MusicPath) && File.Exists(MusicPath))
                     {
                         PlayLauncherMusic(MusicPath);
-                        Debug.WriteLine("Music resumed");
+                        Log.Debug("Music resumed");
                     }
                 }
             }

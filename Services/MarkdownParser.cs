@@ -16,6 +16,7 @@ using System.Text.RegularExpressions;
 
 namespace GithubLauncher.Services
 {
+using GithubLauncher.Services.Logging;
     public static class MarkdownParser
     {
         /// <summary>
@@ -496,7 +497,7 @@ namespace GithubLauncher.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Failed to open URL: {ex.Message}");
+                Log.Error($"Failed to open URL: {ex.Message}");
             }
         }
     }

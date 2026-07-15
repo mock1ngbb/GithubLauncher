@@ -11,6 +11,7 @@ using System.Linq;
 
 namespace GithubLauncher.Services
 {
+using GithubLauncher.Services.Logging;
     public class InputService : IDisposable
     {
         private readonly Window _mainWindow;
@@ -54,7 +55,7 @@ namespace GithubLauncher.Services
         {
             if (SDL.SDL_Init(SDL.SDL_INIT_GAMECONTROLLER | SDL.SDL_INIT_VIDEO) < 0)
             {
-                System.Diagnostics.Debug.WriteLine($"SDL initialization failed: {SDL.SDL_GetError()}");
+                Log.Error($"SDL initialization failed: {SDL.SDL_GetError()}");
                 return;
             }
 
@@ -69,7 +70,7 @@ namespace GithubLauncher.Services
                     {
                         _gameControllers[i] = controller;
                         _gamepadStates[i] = new GamepadState();
-                        System.Diagnostics.Debug.WriteLine($"Game controller {i} connected: {SDL.SDL_GameControllerName(controller)}");
+                        Log.Info($"Game controller {i} connected: {SDL.SDL_GameControllerName(controller)}");
                     }
                 }
             }
@@ -202,12 +203,12 @@ namespace GithubLauncher.Services
                     {
                         case SDL.SDL_WindowEventID.SDL_WINDOWEVENT_FOCUS_GAINED:
                             _isWindowActive = true;
-                            System.Diagnostics.Debug.WriteLine("SDL: Window gained focus");
+                            Log.Debug("SDL: Window gained focus");
                             break;
 
                         case SDL.SDL_WindowEventID.SDL_WINDOWEVENT_FOCUS_LOST:
                             _isWindowActive = false;
-                            System.Diagnostics.Debug.WriteLine("SDL: Window lost focus");
+                            Log.Debug("SDL: Window lost focus");
                             break;
                     }
                 }
