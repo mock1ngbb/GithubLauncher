@@ -15,8 +15,7 @@ namespace GithubLauncher
 
         private const int ATTACH_PARENT_PROCESS = -1;
 
-        [STAThread]
-        public static int Main(string[] args)
+        public static async Task<int> Main(string[] args)
         {
             if (args.Length > 0 && args[0].StartsWith("-"))
             {
@@ -29,7 +28,7 @@ namespace GithubLauncher
                     }
                 }
 
-                int exitCode = RunCLI(args);
+                int exitCode = await RunCLI(args);
 
                 if (OperatingSystem.IsWindows())
                 {
@@ -44,12 +43,12 @@ namespace GithubLauncher
             return 0;
         }
 
-        private static int RunCLI(string[] args)
+        private static async Task<int> RunCLI(string[] args)
         {
             try
             {
                 var cliHandler = new CLIHandler();
-                return cliHandler.Execute(args).GetAwaiter().GetResult();
+                return await cliHandler.Execute(args);
             }
             catch (Exception ex)
             {
