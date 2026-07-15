@@ -319,18 +319,11 @@ namespace GithubLauncher.Services
 
         public async Task ClearIconCacheAsync()
         {
-            try
+            var iconsDir = Path.Combine(_cacheFolder, "Icons");
+            if (Directory.Exists(iconsDir))
             {
-                var iconsDir = Path.Combine(_cacheFolder, "Icons");
-                if (Directory.Exists(iconsDir))
-                {
-                    Directory.Delete(iconsDir, true);
-                    await LoadCustomAndCachedIconsAsync();
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to clear icon cache: {ex.Message}");
+                Directory.Delete(iconsDir, true);
+                await LoadCustomAndCachedIconsAsync();
             }
         }
 
