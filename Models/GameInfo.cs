@@ -1246,8 +1246,7 @@ namespace GithubLauncher.Models
         {
             try
             {
-                var settings = AppSettings.Load();
-                return settings?.GitHubApiToken ?? string.Empty;
+                return SecretStore.ReadToken();
             }
             catch
             {
