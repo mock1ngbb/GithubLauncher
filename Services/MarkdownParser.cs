@@ -480,6 +480,15 @@ using GithubLauncher.Services.Logging;
 
         private static void OpenUrl(string url)
         {
+            // Only allow http and https to prevent argument injection via
+            // xdg-open/open (e.g. javascript:, file:, or flag-prefixed URLs).
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                || (uri.Scheme != "http" && uri.Scheme != "https"))
+            {
+                Log.Warn($"Blocked attempt to open non-http URL: {url}");
+                return;
+            }
+
             try
             {
                 if (OperatingSystem.IsWindows())
@@ -488,11 +497,11 @@ using GithubLauncher.Services.Logging;
                 }
                 else if (OperatingSystem.IsLinux())
                 {
-                    Process.Start(new ProcessStartInfo("xdg-open") { ArgumentList = { url } });
+                    Process.Start(new ProcessStartInfo("xdg-open") { ArgumentList = { "--", url } });
                 }
                 else if (OperatingSystem.IsMacOS())
                 {
-                    Process.Start(new ProcessStartInfo("open") { ArgumentList = { url } });
+                    Process.Start(new ProcessStartInfo("open") { ArgumentList = { "--", url } });
                 }
             }
             catch (Exception ex)

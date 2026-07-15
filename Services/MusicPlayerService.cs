@@ -139,7 +139,7 @@ using GithubLauncher.Services.Logging;
             }
             catch (Exception ex)
             {
-                Log.Debug($"NAudio playback failed: {ex.Message}");
+                Log.Error($"NAudio playback failed: {ex.Message}");
             }
             #else
             Log.Warn("Windows audio playback not available on this platform");
@@ -157,19 +157,43 @@ using GithubLauncher.Services.Logging;
                     var psi = new ProcessStartInfo
                     {
                         FileName = player,
-                        Arguments = player switch
-                        {
-                            "ffplay" => $"-nodisp -autoexit -loop 0 -volume {(int)(_musicVolume * 100)} \"{path}\"",
-                            "mpv" => $"--no-video --loop=inf --volume={_musicVolume * 100} \"{path}\"",
-                            "cvlc" => $"--no-video --loop --volume {(int)(_musicVolume * 512)} \"{path}\"",
-                            "mplayer" => $"-loop 0 -volume {(int)(_musicVolume * 100)} \"{path}\"",
-                            _ => $"\"{path}\""
-                        },
                         UseShellExecute = false,
                         CreateNoWindow = true,
                         RedirectStandardOutput = true,
                         RedirectStandardError = true
                     };
+
+                    switch (player)
+                    {
+                        case "ffplay":
+                            psi.ArgumentList.Add("-nodisp");
+                            psi.ArgumentList.Add("-autoexit");
+                            psi.ArgumentList.Add("-loop");
+                            psi.ArgumentList.Add("0");
+                            psi.ArgumentList.Add("-volume");
+                            psi.ArgumentList.Add(((int)(_musicVolume * 100)).ToString());
+                            break;
+                        case "mpv":
+                            psi.ArgumentList.Add("--no-video");
+                            psi.ArgumentList.Add("--loop=inf");
+                            psi.ArgumentList.Add($"--volume={_musicVolume * 100}");
+                            break;
+                        case "cvlc":
+                            psi.ArgumentList.Add("--no-video");
+                            psi.ArgumentList.Add("--loop");
+                            psi.ArgumentList.Add("--volume");
+                            psi.ArgumentList.Add(((int)(_musicVolume * 512)).ToString());
+                            break;
+                        case "mplayer":
+                            psi.ArgumentList.Add("-loop");
+                            psi.ArgumentList.Add("0");
+                            psi.ArgumentList.Add("-volume");
+                            psi.ArgumentList.Add(((int)(_musicVolume * 100)).ToString());
+                            break;
+                    }
+
+                    psi.ArgumentList.Add("--");
+                    psi.ArgumentList.Add(path);
 
                     _musicProcess = Process.Start(psi);
                     if (_musicProcess != null)
@@ -199,12 +223,15 @@ using GithubLauncher.Services.Logging;
                 var psi = new ProcessStartInfo
                 {
                     FileName = "afplay",
-                    Arguments = $"-v {volumeValue} \"{path}\"",
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true
                 };
+                psi.ArgumentList.Add("-v");
+                psi.ArgumentList.Add(volumeValue.ToString());
+                psi.ArgumentList.Add("--");
+                psi.ArgumentList.Add(path);
 
                 _musicProcess = Process.Start(psi);
 
@@ -238,7 +265,7 @@ using GithubLauncher.Services.Logging;
             }
             catch (Exception ex)
             {
-                Log.Debug($"afplay failed: {ex.Message}");
+                Log.Error($"afplay failed: {ex.Message}");
             }
         }
 
