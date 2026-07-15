@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
 
 namespace GithubLauncher.Services
 {
@@ -19,6 +20,10 @@ namespace GithubLauncher.Services
         private readonly string _cacheFolder;
         private readonly string _appsConfigPath;
         private readonly string _legacyGamesConfigPath;
+
+        // Throttle concurrent GitHub API calls so the unauthenticated 60/hr rate limit
+        // isn't exhausted by Task.WhenAll over 50+ apps during startup.
+        private static readonly SemaphoreSlim _apiThrottle = new(5, 5);
 
         public ObservableCollection<GameInfo> Games { get; set; } = [];
         public HttpClient HttpClient => _httpClient;
@@ -377,17 +382,43 @@ namespace GithubLauncher.Services
             if (string.IsNullOrEmpty(_appsFolder))
                 return;
 
-            await Task.WhenAll(Games.Where(app => app != null).Select(async app =>
+            // Check installed games first (so users see update status quickly),
+            // then non-installed games. Each GitHub API call goes through a
+            // SemaphoreSlim limited to 5 concurrent requests, with a 500ms pause
+            // between every batch of 5 to stay under GitHub's 60/hr unauthenticated
+            // rate limit when there are 50+ apps.
+            const int batchSize = 5;
+            const int batchDelayMs = 500;
+
+            var orderedApps = Games
+                .Where(app => app != null)
+                .OrderByDescending(app => Directory.Exists(app.GetInstallPath(_appsFolder)))
+                .ToList();
+
+            for (int i = 0; i < orderedApps.Count; i += batchSize)
             {
-                try
+                var batch = orderedApps.Skip(i).Take(batchSize);
+                await Task.WhenAll(batch.Select(async app =>
                 {
-                    await app.CheckStatusAsync(_httpClient, _appsFolder, forceUpdateCheck);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Error checking status for {app.Name}: {ex.Message}");
-                }
-            }));
+                    await _apiThrottle.WaitAsync().ConfigureAwait(false);
+                    try
+                    {
+                        await app.CheckStatusAsync(_httpClient, _appsFolder, forceUpdateCheck)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error checking status for {app.Name}: {ex.Message}");
+                    }
+                    finally
+                    {
+                        _apiThrottle.Release();
+                    }
+                })).ConfigureAwait(false);
+
+                if (i + batchSize < orderedApps.Count)
+                    await Task.Delay(batchDelayMs).ConfigureAwait(false);
+            }
         }
 
         public async Task ExportGamesAsync()
