@@ -134,7 +134,7 @@ namespace GithubLauncher.Services
         /// Update a ResourceDictionary with theme brushes derived from primary
         /// and secondary colors. Mirrors the original UpdateThemeColors logic.
         /// </summary>
-        public static void UpdateThemeResources(ResourceDictionary resources, Color primaryColor, Color secondaryColor)
+        public static void UpdateThemeResources(IResourceDictionary resources, Color primaryColor, Color secondaryColor)
         {
             var themeBase = new SolidColorBrush(primaryColor);
             var themeLighter = new SolidColorBrush(GetShadedColor(primaryColor, 1.3));
