@@ -229,7 +229,7 @@ namespace GithubLauncher
         {
             try
             {
-                using var client = new HttpClient();
+                using var client = HttpClientFactory.GetClient();
                 client.Timeout = TimeSpan.FromSeconds(5);
                 client.DefaultRequestHeaders.Add("User-Agent", Profile.CliUserAgent);
 
@@ -839,7 +839,7 @@ namespace GithubLauncher
                 string currentAppDirectory = AppDomain.CurrentDomain.BaseDirectory;
                 string currentVersion = LoadCurrentLauncherVersion(currentAppDirectory);
 
-                using var client = new HttpClient();
+                using var client = HttpClientFactory.GetClient();
                 client.Timeout = TimeSpan.FromMinutes(10);
                 client.DefaultRequestHeaders.Add("User-Agent", Profile.CliUserAgent);
 

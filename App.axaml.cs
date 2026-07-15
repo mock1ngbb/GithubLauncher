@@ -16,6 +16,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using GithubLauncher.Services;
 
 namespace GithubLauncher;
 
@@ -252,7 +253,7 @@ public class App : Application, INotifyPropertyChanged
 
                 if (IsBootstrapVersion(currentVersionString))
                 {
-                    using (var httpClient = new HttpClient())
+                    using (var httpClient = HttpClientFactory.GetDownloadClient())
                     {
                         httpClient.Timeout = DownloadTimeout;
                         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("GithubLauncher-Updater");
@@ -296,7 +297,7 @@ public class App : Application, INotifyPropertyChanged
 
                     if (result)
                     {
-                        using (var httpClient = new HttpClient())
+                        using (var httpClient = HttpClientFactory.GetDownloadClient())
                         {
                             httpClient.Timeout = DownloadTimeout;
                             httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("GithubLauncher-Updater");
@@ -334,7 +335,7 @@ public class App : Application, INotifyPropertyChanged
             return;
         }
 
-        using (var httpClient = new HttpClient())
+        using (var httpClient = HttpClientFactory.GetDownloadClient())
         {
             httpClient.Timeout = DownloadTimeout;
             httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("GithubLauncher-Updater");
@@ -785,7 +786,7 @@ public class App : Application, INotifyPropertyChanged
             }
         });
 
-        using (var httpClient = new HttpClient())
+        using (var httpClient = HttpClientFactory.GetDownloadClient())
         {
             httpClient.Timeout = DownloadTimeout;
 

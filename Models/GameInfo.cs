@@ -1086,7 +1086,7 @@ namespace GithubLauncher.Models
                 // Download icon if not cached
                 System.Diagnostics.Debug.WriteLine($"Downloading icon for {Name} from {defaultUrl}");
 
-                using var httpClient = new HttpClient();
+                using var httpClient = HttpClientFactory.GetDownloadClient();
                 httpClient.Timeout = TimeSpan.FromSeconds(10);
                 httpClient.DefaultRequestHeaders.Add("User-Agent", "Github-Launcher/1.0");
 
