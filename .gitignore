@@ -409,3 +409,6 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 flatpak.bat
+
+# Git worktrees (loom agent isolation)
+.worktrees/
