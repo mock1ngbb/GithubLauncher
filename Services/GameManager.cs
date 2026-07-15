@@ -42,7 +42,7 @@ namespace GithubLauncher.Services
 
         public GameManager()
         {
-            _httpClient = new HttpClient();
+            _httpClient = HttpClientFactory.GetClient();
             _httpClient.DefaultRequestHeaders.Add("User-Agent", Profile.UserAgent);
             _httpClient.Timeout = TimeSpan.FromMinutes(30);
 
