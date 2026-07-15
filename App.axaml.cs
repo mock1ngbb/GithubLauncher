@@ -760,7 +760,7 @@ public class App : Application, INotifyPropertyChanged
 
         ProgressWindow? progressWindow = null;
 
-        await Dispatcher.UIThread.InvokeAsync(async () =>
+        await Dispatcher.UIThread.InvokeAsync(() =>
         {
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && desktop.MainWindow != null)
             {

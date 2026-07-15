@@ -601,7 +601,7 @@ namespace GithubLauncher.Models
                     {
                         await CheckLatestVersionAsync(httpClient).ConfigureAwait(false);
                     }
-                    else if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache != null)
+                    else if (GitHubApiCache.TryGetCachedVersion(Repository ?? string.Empty, out var cache) && cache != null)
                     {
                         // Use cached data
                         LatestVersion = cache.Version;
@@ -615,7 +615,7 @@ namespace GithubLauncher.Models
                     {
                         await CheckLatestVersionAsync(httpClient).ConfigureAwait(false);
                     }
-                    else if (GitHubApiCache.TryGetCachedVersion(Repository, out var cache) && cache != null)
+                    else if (GitHubApiCache.TryGetCachedVersion(Repository ?? string.Empty, out var cache) && cache != null)
                     {
                         // Use cached data
                         LatestVersion = cache.Version;

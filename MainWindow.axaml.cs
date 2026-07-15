@@ -75,7 +75,7 @@ namespace GithubLauncher
                 }
             }
         }
-        private System.Threading.CancellationTokenSource? _fadeTaskCts;
+        private System.Threading.CancellationTokenSource? _fadeTaskCts = null;
         private const int FADE_DURATION_MS = 500;
         #if WINDOWS
         private IWavePlayer? _waveOut;
@@ -283,8 +283,8 @@ namespace GithubLauncher
             _gameManager = new GameManager();
 
             // Initialize theme
-            ThemeColorBrush = new SolidColorBrush(Color.Parse(_settings?.PrimaryColor ?? "#18181b"));
-            SecondaryColorBrush = new SolidColorBrush(Color.Parse(_settings?.SecondaryColor ?? "#404040"));
+            ThemeColorBrush = new SolidColorBrush(Color.Parse(_settings.PrimaryColor ?? "#18181b"));
+            SecondaryColorBrush = new SolidColorBrush(Color.Parse(_settings.SecondaryColor ?? "#404040"));
             UpdateThemeColors();
 
             _gameManager.UnhideAllGames();
@@ -1561,7 +1561,7 @@ namespace GithubLauncher
             OpenContextMenu(anchor, contextMenu);
         }
 
-        private void ShowReleaseDownloadSelectionMenu(Control anchor, GameInfo game, GitHubRelease release, string preferredVersion, string skippedUpdateVersion)
+        private void ShowReleaseDownloadSelectionMenu(Control anchor, GameInfo game, GitHubRelease release, string? preferredVersion, string skippedUpdateVersion)
         {
             var availableAssets = release.assets?
                 .Where(asset => !asset.name.Contains("flatpak", StringComparison.OrdinalIgnoreCase))
@@ -3576,7 +3576,7 @@ namespace GithubLauncher
             }
         }
 
-        private async void ValidateGames_Click(object sender, RoutedEventArgs e)
+        private async void ValidateGames_Click(object? sender, RoutedEventArgs? e)
         {
             try
             {
@@ -3950,7 +3950,7 @@ namespace GithubLauncher
             LoadGamesFromJson();
         }
 
-        private void SwitchToManageGamesTab(object sender, RoutedEventArgs e)
+        private void SwitchToManageGamesTab(object? sender, RoutedEventArgs? e)
         {
             var manageGamesTab = this.FindControl<ScrollViewer>("ManageGamesTab");
             var createEditTab = this.FindControl<ScrollViewer>("CreateEditTab");
@@ -3973,7 +3973,7 @@ namespace GithubLauncher
             }
         }
 
-        private void SwitchToCreateEditTab(object sender, RoutedEventArgs e)
+        private void SwitchToCreateEditTab(object? sender, RoutedEventArgs? e)
         {
             var manageGamesTab = this.FindControl<ScrollViewer>("ManageGamesTab");
             var createEditTab = this.FindControl<ScrollViewer>("CreateEditTab");
@@ -4088,7 +4088,7 @@ namespace GithubLauncher
 
         private void EditGameEntry_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button button && button.Tag is var gameData)
+            if (sender is Button button && button.Tag is {} gameData)
             {
                 try
                 {
@@ -4145,7 +4145,7 @@ namespace GithubLauncher
         private string? _editingGameRepository = null;
         private string? _editingFolderName = null;
 
-        private async void CancelForm_Click(object sender, RoutedEventArgs e)
+        private void CancelForm_Click(object sender, RoutedEventArgs e)
         {
             ClearForm();
             SwitchToManageGamesTab(null, null);
@@ -4176,7 +4176,7 @@ namespace GithubLauncher
 
         private async void RemoveGameEntry_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button button && button.Tag is var gameData)
+            if (sender is Button button && button.Tag is {} gameData)
             {
                 try
                 {
@@ -4566,7 +4566,7 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
             };
         }
 
-        private async void CatalogAddEntry_Click(object sender, RoutedEventArgs e)
+        private async void CatalogAddEntry_Click(object? sender, RoutedEventArgs e)
         {
             if (sender is not Button button || button.Tag is not CatalogEntry entry)
                 return;
@@ -5347,7 +5347,7 @@ private Border BuildCatalogCard(CatalogEntry entry, bool alreadyAdded)
                     changelogContent.ItemsSource = new[] { loadingPanel };
                 }
 
-                string changelogText = await FetchChangelogAsync(game.Repository);
+                string changelogText = await FetchChangelogAsync(game.Repository ?? string.Empty);
 
                 if (changelogContent != null)
                 {
