@@ -3,6 +3,18 @@
 [![.NET 9](https://img.shields.io/badge/.NET-9-512BD4)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/github/license/SirDiabo/GithubLauncher)](https://github.com/SirDiabo/GithubLauncher/blob/main/LICENSE)
 
+## Fork: macOS + Hardening
+
+This fork ([mock1ngbb/GithubLauncher](https://github.com/mock1ngbb/GithubLauncher))
+extends the original launcher with:
+
+- **macOS as a first-class platform** — native .app bundle, Apple Silicon (arm64) builds, macOS shortcuts, Info.plist integration
+- **Security hardening** — encrypted token storage (AES-256-GCM, no plaintext secrets), password masking, rate-limit monitoring
+- **Code quality** — refactored ~6000-line MainWindow, fixed async bugs, eliminated nullable warnings, centralized HTTP client
+- **Cicada CI/CD** — automated builds for osx-arm64, win-x64, linux-x64/arm64
+- **Upstream PRs** — security and quality fixes contributed back to SirDiabo/GithubLauncher
+
+
 >## Important
 >### Migration from N64RecompLauncher to GithubLauncher
 >
