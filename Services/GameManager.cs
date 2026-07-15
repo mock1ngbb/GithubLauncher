@@ -63,11 +63,11 @@ namespace GithubLauncher.Services
 
             _appsFolder = !string.IsNullOrEmpty(_settings?.AppsPath)
                 ? _settings.AppsPath
-                : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, Profile.DefaultInstallFolderName);
+                : Path.Combine(AppPaths.DataDirectory, Profile.DefaultInstallFolderName);
 
-            _cacheFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Cache");
-            _appsConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "apps.json");
-            _legacyGamesConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "games.json");
+            _cacheFolder = Path.Combine(AppPaths.DataDirectory, "Cache");
+            _appsConfigPath = Path.Combine(AppPaths.DataDirectory, "apps.json");
+            _legacyGamesConfigPath = Path.Combine(AppPaths.DataDirectory, "games.json");
 
             try
             {
@@ -443,7 +443,7 @@ namespace GithubLauncher.Services
                 }
                 else
                 {
-                    targetPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, Profile.DefaultInstallFolderName);
+                    targetPath = Path.Combine(AppPaths.DataDirectory, Profile.DefaultInstallFolderName);
                     Directory.CreateDirectory(targetPath);
                 }
 
@@ -459,7 +459,7 @@ namespace GithubLauncher.Services
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error updating apps folder: {ex.Message}");
-                _appsFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, Profile.DefaultInstallFolderName);
+                _appsFolder = Path.Combine(AppPaths.DataDirectory, Profile.DefaultInstallFolderName);
                 Directory.CreateDirectory(_appsFolder);
                 throw;
             }

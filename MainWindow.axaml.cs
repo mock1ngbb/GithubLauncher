@@ -919,7 +919,7 @@ namespace GithubLauncher
             try
             {
                 string currentAppDirectory = AppDomain.CurrentDomain.BaseDirectory;
-                string updateCheckFilePath = Path.Combine(currentAppDirectory, "update_check.json");
+                string updateCheckFilePath = Path.Combine(AppPaths.DataDirectory, "update_check.json");
 
                 if (File.Exists(updateCheckFilePath))
                 {
@@ -3568,7 +3568,7 @@ namespace GithubLauncher
                 };
 
                 var options = new JsonSerializerOptions { WriteIndented = true };
-                var exportPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "apps_export.json");
+                var exportPath = Path.Combine(AppPaths.DataDirectory, "apps_export.json");
                 await File.WriteAllTextAsync(exportPath, JsonSerializer.Serialize(exportData, options));
 
                 await ShowMessageBoxAsync($"Apps exported to {exportPath}", "Export Complete");
@@ -3612,8 +3612,8 @@ namespace GithubLauncher
         }
         private async Task<List<GameInfo>> LoadGamesFromJsonAsync()
         {
-            var appsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "apps.json");
-            var legacyPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "games.json");
+            var appsPath = Path.Combine(AppPaths.DataDirectory, "apps.json");
+            var legacyPath = Path.Combine(AppPaths.DataDirectory, "games.json");
             var sourcePath = File.Exists(appsPath) ? appsPath : legacyPath;
             if (!File.Exists(sourcePath)) return [];
 
@@ -3690,7 +3690,7 @@ namespace GithubLauncher
         }
         private async Task SaveGamesToJsonAsync(List<GameInfo> appsToSave)
         {
-            var appsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "apps.json");
+            var appsPath = Path.Combine(AppPaths.DataDirectory, "apps.json");
             var data = new
             {
                 apps = appsToSave.Select(SerializeGame).ToList()
@@ -4259,10 +4259,10 @@ namespace GithubLauncher
 
         // App Catalog
         private static readonly string AppCatalogCachePath = Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory, "app_catalog_cache.json");
+            AppPaths.DataDirectory, "app_catalog_cache.json");
 
         private static readonly string AppCatalogVersionPath = Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory, "app_catalog_version.txt");
+            AppPaths.DataDirectory, "app_catalog_version.txt");
 
         private async Task LoadAppCatalogAsync(bool forceRefresh)
         {
