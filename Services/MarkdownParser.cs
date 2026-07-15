@@ -13,10 +13,10 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using GithubLauncher.Services.Logging;
 
 namespace GithubLauncher.Services
 {
-using GithubLauncher.Services.Logging;
     public static class MarkdownParser
     {
         /// <summary>
@@ -480,15 +480,6 @@ using GithubLauncher.Services.Logging;
 
         private static void OpenUrl(string url)
         {
-            // Only allow http and https to prevent argument injection via
-            // xdg-open/open (e.g. javascript:, file:, or flag-prefixed URLs).
-            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
-                || (uri.Scheme != "http" && uri.Scheme != "https"))
-            {
-                Log.Warn($"Blocked attempt to open non-http URL: {url}");
-                return;
-            }
-
             try
             {
                 if (OperatingSystem.IsWindows())
@@ -497,16 +488,16 @@ using GithubLauncher.Services.Logging;
                 }
                 else if (OperatingSystem.IsLinux())
                 {
-                    Process.Start(new ProcessStartInfo("xdg-open") { ArgumentList = { "--", url } });
+                    Process.Start("xdg-open", $"\"{url}\"");
                 }
                 else if (OperatingSystem.IsMacOS())
                 {
-                    Process.Start(new ProcessStartInfo("open") { ArgumentList = { "--", url } });
+                    Process.Start("open", $"\"{url}\"");
                 }
             }
             catch (Exception ex)
             {
-                Log.Error($"Failed to open URL: {ex.Message}");
+                Log.Error("Failed to open URL", ex);
             }
         }
     }

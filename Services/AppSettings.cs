@@ -2,10 +2,10 @@ using System;
 using System.IO;
 using System.Text.Json;
 using GitHubLauncher.Core.Models;
+using GithubLauncher.Services.Logging;
 
 namespace GithubLauncher
 {
-using GithubLauncher.Services.Logging;
     public class AppSettings
     {
         public bool FirstStartup { get; set; } = true;
@@ -58,7 +58,7 @@ using GithubLauncher.Services.Logging;
             }
             catch (Exception ex)
             {
-                Log.Error($"Failed to load settings: {ex.Message}");
+                Log.Error("Failed to load settings", ex);
             }
 
             return new AppSettings();
@@ -76,7 +76,7 @@ using GithubLauncher.Services.Logging;
             }
             catch (Exception ex)
             {
-                Log.Error($"Failed to save settings: {ex.Message}");
+                Log.Error("Failed to save settings", ex);
                 throw;
             }
         }
