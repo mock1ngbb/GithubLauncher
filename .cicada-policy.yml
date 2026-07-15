@@ -1,0 +1,10 @@
+# Cicada policy — GithubLauncher
+# Schema: https://github.com/mockingb1rdblue/bifrost-bridge/blob/hee-haw/schemas/cicada-policy.schema.json
+# Contract: https://github.com/mockingb1rdblue/bifrost-bridge/blob/hee-haw/docs/constitutions/cicd/contract-cicada-policy.md
+version: 1
+cicd_target: charon-cicada
+github_actions: forbidden
+lfs_backend: none
+manifest: required
+policy_owner: mockingb1rdblue
+last_verified: '2026-07-14'

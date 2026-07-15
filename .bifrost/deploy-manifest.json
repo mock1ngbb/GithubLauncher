@@ -1,0 +1,43 @@
+{
+	"version": "1",
+	"owner": "mock1ngbb",
+	"repo": "GithubLauncher",
+	"targets": [
+		{
+			"service_id": "script:github-launcher:build",
+			"platform": "script",
+			"build": {
+				"command": "dotnet publish --configuration Release --runtime osx-arm64 --self-contained true -p:IncludeNativeLibrariesForSelfExtract=true"
+			},
+			"artifact": {
+				"type": "directory",
+				"path": "bin/Release/net9.0/osx-arm64/publish"
+			},
+			"health_check": {
+				"type": "file-exists",
+				"path": "bin/Release/net9.0/osx-arm64/publish/GithubLauncher"
+			},
+			"watch_paths": [
+				"*.cs",
+				"*.csproj",
+				"*.sln",
+				"*.axaml",
+				"*.axaml.cs",
+				"lib/GitHubLauncher.Core/**/*.cs",
+				"lib/GitHubLauncher.Core/**/*.csproj",
+				"Models/**",
+				"Services/**",
+				"Converters/**",
+				"Assets/**"
+			],
+			"deploy_branch": "hee-haw",
+			"destructive_gate": false,
+			"max_deploy_time_seconds": 600,
+			"concurrent_deploys": "serial"
+		}
+	],
+	"secrets": [
+		"GITHUB_TOKEN"
+	],
+	"env": {}
+}

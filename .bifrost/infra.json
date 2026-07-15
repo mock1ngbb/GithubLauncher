@@ -1,0 +1,5 @@
+{
+	"dotnet": "9.0",
+	"github_token_secret": "GITHUB_TOKEN",
+	"darwin_codesign_skip": true
+}
