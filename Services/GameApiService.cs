@@ -598,6 +598,7 @@ namespace GithubLauncher.Services
                                 var appName = (game.FolderName ?? game.Name?.Replace(" ", ""))?.Trim();
                                 if (appName != null && Directory.Exists("/Applications"))
                                 {
+                                    // Only accept name-matched .app in /Applications - no broad fallback
                                     var allApps = Directory.GetDirectories("/Applications", "*.app", SearchOption.TopDirectoryOnly);
                                     var found = allApps.FirstOrDefault(a => Path.GetFileNameWithoutExtension(a).Contains(appName, StringComparison.OrdinalIgnoreCase));
                                     found ??= allApps.FirstOrDefault(a => !Path.GetFileNameWithoutExtension(a).Equals("App", StringComparison.OrdinalIgnoreCase)
