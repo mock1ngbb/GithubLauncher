@@ -883,17 +883,40 @@ namespace GithubLauncher.Services
                     startInfo.FileName = executablePath;
                     startInfo.WorkingDirectory = Path.GetDirectoryName(executablePath) ?? gamePath;
                     startInfo.UseShellExecute = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+                    if (!startInfo.UseShellExecute) { startInfo.RedirectStandardError = true; startInfo.RedirectStandardOutput = true; }
                 }
 
                 _cacheService.UpdateLastPlayedTime(game, gamesFolder);
+		_cacheService.UpdateLastPlayedTime(game, gamesFolder);
 
 		Log.Debug($"Launching {game.Name}: {startInfo.FileName}");
-                var gameProcess = Process.Start(startInfo);
-                game.NotifyGameProcessStarted(gameProcess);
-		if (gameProcess != null) Log.Debug($"{game.Name} PID {gameProcess.Id}");
-		else Log.Error($"Process.Start returned null for {game.Name}");
-
-                if (game.GameManager != null)
+		var gameProcess = Process.Start(startInfo);
+		game.NotifyGameProcessStarted(gameProcess);
+		if (gameProcess != null)
+		{
+			Log.Debug($"{game.Name} PID {gameProcess.Id}");
+			// Capture stderr for diagnostics
+			if (startInfo.RedirectStandardError)
+			{
+				gameProcess.ErrorDataReceived += (sender, args) =>
+				{
+					if (!string.IsNullOrEmpty(args.Data))
+						Log.Warn($"[{game.Name}] {args.Data}");
+				};
+				gameProcess.BeginErrorReadLine();
+			}
+			if (startInfo.RedirectStandardOutput)
+			{
+				gameProcess.OutputDataReceived += (sender, args) =>
+				{
+					if (!string.IsNullOrEmpty(args.Data))
+						Log.Debug($"[{game.Name}] {args.Data}");
+				};
+				gameProcess.BeginOutputReadLine();
+			}
+		}
+		else
+			Log.Error($"Process.Start returned null for {game.Name}");
                 {
                     game.GameManager.OnPropertyChanged(nameof(GameManager.Games));
                 }
