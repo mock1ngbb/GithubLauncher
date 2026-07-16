@@ -582,17 +582,49 @@ namespace GithubLauncher.Services
 
                 if (executables.Count == 0)
                 {
-                    // macOS .dmg handling
+                    // macOS .dmg handling: auto-mount
                     if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                     {
                         var dmgFiles = Directory.GetFiles(gamePath, "*.dmg", SearchOption.TopDirectoryOnly);
                         if (dmgFiles.Length > 0)
                         {
-                            Log.Warn($"No executable in {game.Name} - .dmg found: {string.Join(", ", dmgFiles.Select(Path.GetFileName))}");
+                            var dmgPath = dmgFiles[0];
+                            var dmgName = Path.GetFileName(dmgPath);
+                            Log.Warn($"No executable in {game.Name} - .dmg found: {dmgName}");
+
+                            // Look for .app in /Applications
+                            var appName = (game.FolderName ?? game.Name?.Replace(" ", ""))?.Trim();
+                            if (appName != null)
+                            {
+                                var installedApp = Directory.GetDirectories("/Applications", appName + ".app", SearchOption.TopDirectoryOnly).FirstOrDefault();
+                                if (installedApp != null)
+                                {
+                                    Log.Info($"Launching installed .app: {installedApp}");
+                                    Process.Start(new ProcessStartInfo("open") { ArgumentList = { installedApp } });
+                                    return;
+                                }
+                                // Check /Volumes for mounted DMG
+                                var volName = Path.GetFileNameWithoutExtension(dmgName);
+                                var mountedApp = Directory.GetDirectories("/Volumes/" + volName, "*.app", SearchOption.TopDirectoryOnly).FirstOrDefault();
+                                if (mountedApp != null)
+                                {
+                                    Log.Info($"Launching from mounted DMG: {mountedApp}");
+                                    Process.Start(new ProcessStartInfo("open") { ArgumentList = { mountedApp } });
+                                    return;
+                                }
+                            }
+
+                            // Mount the DMG automatically
+                            Log.Info($"Mounting DMG: {dmgPath}");
+                            var mountProc = Process.Start(new ProcessStartInfo("hdiutil") { ArgumentList = { "attach", dmgPath } });
+                            if (mountProc != null) await mountProc.WaitForExitAsync();
+
                             await ShowMessageBoxAsync(
                                 $"{game.Name} was downloaded as a disk image (.dmg).\n\n" +
-                                $"To install:\n1. Open the .dmg in Finder\n2. Drag the .app to Applications\n3. Add ROM if needed\n\nLocation: {gamePath}",
-                                "DMG Install Required");
+                                $"The disk image has been mounted in Finder.\n" +
+                                $"Drag the .app to your Applications folder, then press Play again.\n\n" +
+                                $"File: {dmgPath}",
+                                "DMG Mounted");
                             return;
                         }
                     }
