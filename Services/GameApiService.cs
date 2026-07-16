@@ -468,7 +468,7 @@ namespace GithubLauncher.Services
                             {
                                 var mountPsi = new ProcessStartInfo("hdiutil")
                                 {
-                                    ArgumentList = { "attach", dmgPath, "-mountpoint", mountPt, "-noverify", "-noautofsck" },
+                                    ArgumentList = { "attach", dmgPath, "-mountpoint", mountPt, "-noverify", "-noautofsck", "-agreeToLicense" },
                                     RedirectStandardOutput = true,
                                     RedirectStandardError = true,
                                     UseShellExecute = false
@@ -676,7 +676,7 @@ namespace GithubLauncher.Services
                             {
                                 var mountPsi = new ProcessStartInfo("hdiutil")
                                 {
-                                    ArgumentList = { "attach", dmgPath, "-mountpoint", mountPoint, "-noverify", "-noautofsck" },
+                                    ArgumentList = { "attach", dmgPath, "-mountpoint", mountPoint, "-noverify", "-noautofsck", "-agreeToLicense" },
                                     RedirectStandardOutput = true,
                                     RedirectStandardError = true,
                                     UseShellExecute = false
