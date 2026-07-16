@@ -638,8 +638,11 @@ namespace GithubLauncher.Services
 
                 _cacheService.UpdateLastPlayedTime(game, gamesFolder);
 
+		Log.Debug($"Launching {game.Name}: {startInfo.FileName}");
                 var gameProcess = Process.Start(startInfo);
                 game.NotifyGameProcessStarted(gameProcess);
+		if (gameProcess != null) Log.Debug($"{game.Name} PID {gameProcess.Id}");
+		else Log.Error($"Process.Start returned null for {game.Name}");
 
                 if (game.GameManager != null)
                 {
