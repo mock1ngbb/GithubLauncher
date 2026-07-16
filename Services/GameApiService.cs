@@ -609,11 +609,10 @@ namespace GithubLauncher.Services
                             }
                             catch (Exception ex) { Log.Debug($"DMG /Applications check: {ex.Message}"); }
 
-                            // Scan all /Volumes for matching .app
+                            // Scan all /Volumes for matching .app and install it
                             try
                             {
-                                var appName = (game.FolderName ?? game.Name?.Replace(" ", ""))?.Trim();
-                                if (appName != null && Directory.Exists("/Volumes"))
+                                if (Directory.Exists("/Volumes"))
                                 {
                                     foreach (var vol in Directory.GetDirectories("/Volumes"))
                                     {
@@ -621,12 +620,34 @@ namespace GithubLauncher.Services
                                         foreach (var a in apps)
                                         {
                                             var name = Path.GetFileNameWithoutExtension(a);
-                                            if (!name.Equals("App", StringComparison.OrdinalIgnoreCase))
+                                            if (name.Equals("App", StringComparison.OrdinalIgnoreCase)) continue;
+
+                                            Log.Info($"Found .app on volume: {a}");
+                                            var bundleName = Path.GetFileName(a);
+                                            var destPath = Path.Combine("/Applications", bundleName);
+                                            if (!Directory.Exists(destPath))
                                             {
-                                                Log.Info($"Launching from mounted DMG: {a}");
-                                                Process.Start(new ProcessStartInfo("open") { ArgumentList = { a } });
-                                                return;
+                                                Log.Info($"Copying {bundleName} to /Applications via ditto...");
+                                                var dittoPsi = new ProcessStartInfo("ditto")
+                                                {
+                                                    ArgumentList = { a, destPath },
+                                                    RedirectStandardOutput = true,
+                                                    RedirectStandardError = true,
+                                                    UseShellExecute = false
+                                                };
+                                                using var dittoProc = Process.Start(dittoPsi);
+                                                if (dittoProc != null)
+                                                {
+                                                    dittoProc.WaitForExit(120000);
+                                                    if (dittoProc.ExitCode == 0)
+                                                        Log.Info($"Installed {bundleName} to /Applications");
+                                                    else
+                                                        Log.Error($"ditto failed: {dittoProc.StandardError.ReadToEnd()}");
+                                                }
                                             }
+                                            Log.Info($"Launching {destPath}");
+                                            Process.Start(new ProcessStartInfo("open") { ArgumentList = { destPath } });
+                                            return;
                                         }
                                     }
                                 }
@@ -673,20 +694,74 @@ namespace GithubLauncher.Services
                             }
                             catch (Exception mountEx) { Log.Error($"hdiutil exception: {mountEx.Message}"); }
 
-                            // Check mounted volume for .app
-                            bool launchedFromMount = false;
+                            // Find .app on the mounted volume
+                            string? appOnVolume = null;
                             if (mountPoint != null && Directory.Exists(mountPoint))
                             {
                                 var appsOnVolume = Directory.GetDirectories(mountPoint, "*.app", SearchOption.TopDirectoryOnly);
-                                if (appsOnVolume.Length > 0)
+                                if (appsOnVolume.Length > 0) appOnVolume = appsOnVolume[0];
+                            }
+                            if (appOnVolume == null)
+                            {
+                                // Fallback: scan all /Volumes
+                                foreach (var vol in Directory.GetDirectories("/Volumes"))
                                 {
-                                    Log.Info($"Found .app on mounted volume: {appsOnVolume[0]}");
-                                    Process.Start(new ProcessStartInfo("open") { ArgumentList = { appsOnVolume[0] } });
-                                    launchedFromMount = true;
+                                    var apps = Directory.GetDirectories(vol, "*.app", SearchOption.TopDirectoryOnly);
+                                    foreach (var a in apps)
+                                    { if (!Path.GetFileNameWithoutExtension(a).Equals("App", StringComparison.OrdinalIgnoreCase)) { appOnVolume = a; break; } }
+                                    if (appOnVolume != null) break;
                                 }
                             }
 
-                            if (!launchedFromMount)
+                            if (appOnVolume != null)
+                            {
+                                // Copy to /Applications using ditto (preserves code signing)
+                                var bundleName = Path.GetFileName(appOnVolume);
+                                var destPath = Path.Combine("/Applications", bundleName);
+                                bool alreadyInstalled = Directory.Exists(destPath);
+
+                                if (!alreadyInstalled)
+                                {
+                                    Log.Info($"Installing {bundleName} to /Applications...");
+                                    var dittoPsi = new ProcessStartInfo("ditto")
+                                    {
+                                        ArgumentList = { appOnVolume, destPath },
+                                        RedirectStandardOutput = true,
+                                        RedirectStandardError = true,
+                                        UseShellExecute = false
+                                    };
+                                    using var dittoProc = Process.Start(dittoPsi);
+                                    if (dittoProc != null)
+                                    {
+                                        dittoProc.WaitForExit(120000);
+                                        if (dittoProc.ExitCode == 0)
+                                            Log.Info($"Installed {bundleName} to /Applications");
+                                        else
+                                        {
+                                            Log.Error($"ditto failed: {dittoProc.StandardError.ReadToEnd()}");
+                                            await ShowMessageBoxAsync($"Failed to install {bundleName}. Try dragging it to Applications manually.", "Install Failed");
+                                            return;
+                                        }
+                                    }
+                                }
+
+                                // Launch from /Applications
+                                Log.Info($"Launching {destPath}");
+                                Process.Start(new ProcessStartInfo("open") { ArgumentList = { destPath } });
+
+                                // Eject the DMG volume
+                                if (mountPoint != null)
+                                {
+                                    try
+                                    {
+                                        Process.Start(new ProcessStartInfo("hdiutil") { ArgumentList = { "detach", mountPoint } });
+                                        Log.Info($"Ejected {mountPoint}");
+                                    }
+                                    catch (Exception detachEx) { Log.Debug($"Eject failed: {detachEx.Message}"); }
+                                }
+                                return;
+                            }
+
                             {
                                 await ShowMessageBoxAsync(
                                     $"{game.Name} was downloaded as a disk image (.dmg).\n\n" +
