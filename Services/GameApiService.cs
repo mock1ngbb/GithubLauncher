@@ -456,6 +456,24 @@ namespace GithubLauncher.Services
                     game.DownloadProgress = 0;
                     game.SelectedDownload = null;
                     game.AvailableDownloads = null;
+
+                    // macOS .dmg handling: warn the user
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    {
+                        var dmgFiles = Directory.GetFiles(gamePath, "*.dmg", SearchOption.TopDirectoryOnly);
+                        if (dmgFiles.Length > 0)
+                        {
+                            Log.Warn($"Installed {game.Name} contains .dmg file(s): {string.Join(", ", dmgFiles.Select(Path.GetFileName))}. DMG files cannot be auto-installed.");
+                            _ = ShowMessageBoxAsync(
+                                $"{game.Name} was downloaded as a disk image (.dmg).\n\n" +
+                                $"To install:\n" +
+                                $"1. Mount the .dmg by double-clicking it in Finder\n" +
+                                $"2. Drag the .app to your Applications folder\n" +
+                                $"3. If the game needs a ROM, place it in the same folder\n\n" +
+                                $"Location: {gamePath}",
+                                "DMG Install Required");
+                        }
+                    }
                 }
                 finally
                 {
@@ -552,6 +570,15 @@ namespace GithubLauncher.Services
                         GetInstallationOptions(),
                         out needsWine);
                 }
+
+                // Filter out known non-executables (LICENSE, README, etc.)
+                var skipNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    { "license", "licence", "readme", "copying", "copyright", "version", "changelog", "todo", "build" };
+                executables = executables.Where(e =>
+                {
+                    var name = Path.GetFileNameWithoutExtension(e);
+                    return !skipNames.Contains(name);
+                }).ToList();
 
                 if (executables.Count == 0)
                 {
