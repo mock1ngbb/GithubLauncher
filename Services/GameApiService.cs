@@ -601,8 +601,6 @@ namespace GithubLauncher.Services
                                     // Only accept name-matched .app in /Applications - no broad fallback
                                     var allApps = Directory.GetDirectories("/Applications", "*.app", SearchOption.TopDirectoryOnly);
                                     var found = allApps.FirstOrDefault(a => Path.GetFileNameWithoutExtension(a).Contains(appName, StringComparison.OrdinalIgnoreCase));
-                                    found ??= allApps.FirstOrDefault(a => !Path.GetFileNameWithoutExtension(a).Equals("App", StringComparison.OrdinalIgnoreCase)
-                                        && !a.Contains("Github Launcher", StringComparison.OrdinalIgnoreCase));
                                     if (found != null && Directory.Exists(found))
                                     {
                                         Log.Info($"Launching installed .app: {found}");
