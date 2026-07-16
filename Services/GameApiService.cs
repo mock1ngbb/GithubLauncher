@@ -614,17 +614,16 @@ namespace GithubLauncher.Services
                                 }
                             }
 
-                            // Mount the DMG automatically (fire-and-forget, then show dialog)
-                            Log.Info($"Mounting DMG: {dmgPath}");
-                            try { Process.Start(new ProcessStartInfo("hdiutil") { ArgumentList = { "attach", dmgPath } }); }
-                            catch (Exception mountEx) { Log.Error($"Failed to mount DMG: {mountEx.Message}"); }
-
-                            await ShowMessageBoxAsync(
+                            // Show user instructions for manual DMG mounting
+                            Log.Info($"DMG found at: {dmgPath} - showing instructions");
+                            ShowMessageBoxAsync(
                                 $"{game.Name} was downloaded as a disk image (.dmg).\n\n" +
-                                $"A Finder window should open showing the disk image contents.\n" +
-                                $"Drag the .app to your Applications folder, then press Play again.\n\n" +
-                                $"File: {dmgPath}",
-                                "DMG Mounted");
+                                $"The file is at:\n{dmgPath}\n\n" +
+                                $"1. Open the .dmg by double-clicking it in Finder\n" +
+                                $"2. Drag the .app to your Applications folder\n" +
+                                $"3. If the game needs a ROM, place it in the right folder\n" +
+                                $"4. Press Play again to launch from /Applications",
+                                "DMG Install Required");
                             return;
                         }
                     }
