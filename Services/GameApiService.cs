@@ -455,23 +455,36 @@ namespace GithubLauncher.Services
                     game.Status = GameStatus.Installed;
                     game.DownloadProgress = 0;
                     game.SelectedDownload = null;
-                    game.AvailableDownloads = null;
-
-                    // macOS .dmg handling: warn the user
+                    // macOS .dmg handling: auto-mount after download
                     if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                     {
                         var dmgFiles = Directory.GetFiles(gamePath, "*.dmg", SearchOption.TopDirectoryOnly);
                         if (dmgFiles.Length > 0)
                         {
-                            Log.Warn($"Installed {game.Name} contains .dmg file(s): {string.Join(", ", dmgFiles.Select(Path.GetFileName))}. DMG files cannot be auto-installed.");
-                            _ = ShowMessageBoxAsync(
-                                $"{game.Name} was downloaded as a disk image (.dmg).\n\n" +
-                                $"To install:\n" +
-                                $"1. Mount the .dmg by double-clicking it in Finder\n" +
-                                $"2. Drag the .app to your Applications folder\n" +
-                                $"3. If the game needs a ROM, place it in the same folder\n\n" +
-                                $"Location: {gamePath}",
-                                "DMG Install Required");
+                            var dmgPath = dmgFiles[0];
+                            Log.Warn($"Downloaded {game.Name} as .dmg: {Path.GetFileName(dmgPath)}");
+                            var mountPt = "/Volumes/" + (game.FolderName ?? "Game") + "-Install";
+                            try
+                            {
+                                var mountPsi = new ProcessStartInfo("hdiutil")
+                                {
+                                    ArgumentList = { "attach", dmgPath, "-mountpoint", mountPt, "-noverify", "-noautofsck" },
+                                    RedirectStandardOutput = true,
+                                    RedirectStandardError = true,
+                                    UseShellExecute = false
+                                };
+                                using var mountProc = Process.Start(mountPsi);
+                                if (mountProc != null)
+                                {
+                                    mountProc.WaitForExit(15000);
+                                    if (mountProc.ExitCode == 0) Log.Info($"DMG mounted at {mountPt}");
+                                    else Log.Error($"hdiutil failed: {mountProc.StandardError.ReadToEnd()}");
+                                }
+                            }
+                            catch (Exception mountEx) { Log.Error($"Mount: {mountEx.Message}"); }
+                            await ShowMessageBoxAsync(
+                                $"{game.Name} downloaded as .dmg.\nMounted at: {mountPt}\n\nDrag .app to Applications, then press Play.",
+                                "DMG Downloaded");
                         }
                     }
                 }
