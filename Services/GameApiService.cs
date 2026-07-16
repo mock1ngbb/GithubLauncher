@@ -468,7 +468,7 @@ namespace GithubLauncher.Services
                             {
                                 var mountPsi = new ProcessStartInfo("hdiutil")
                                 {
-                                    ArgumentList = { "attach", dmgPath, "-mountpoint", mountPt, "-noverify", "-noautofsck", "-agreeToLicense" },
+                                    ArgumentList = { "attach", dmgPath, "-mountpoint", mountPt, "-noverify", "-noautofsck" },
                                     RedirectStandardOutput = true,
                                     RedirectStandardError = true,
                                     UseShellExecute = false
@@ -478,7 +478,10 @@ namespace GithubLauncher.Services
                                 {
                                     mountProc.WaitForExit(15000);
                                     if (mountProc.ExitCode == 0) Log.Info($"DMG mounted at {mountPt}");
-                                    else Log.Error($"hdiutil failed: {mountProc.StandardError.ReadToEnd()}");
+                                    else if (mountProc.StandardError.ReadToEnd().Contains("canceled"))
+                                            Log.Warn($"DMG has EULA — mount manually: {dmgPath}");
+                                        else
+                                            Log.Error($"hdiutil failed: {mountProc.StandardError.ReadToEnd()}");
                                 }
                             }
                             catch (Exception mountEx) { Log.Error($"Mount: {mountEx.Message}"); }
@@ -676,7 +679,7 @@ namespace GithubLauncher.Services
                             {
                                 var mountPsi = new ProcessStartInfo("hdiutil")
                                 {
-                                    ArgumentList = { "attach", dmgPath, "-mountpoint", mountPoint, "-noverify", "-noautofsck", "-agreeToLicense" },
+                                    ArgumentList = { "attach", dmgPath, "-mountpoint", mountPoint, "-noverify", "-noautofsck" },
                                     RedirectStandardOutput = true,
                                     RedirectStandardError = true,
                                     UseShellExecute = false
@@ -687,7 +690,10 @@ namespace GithubLauncher.Services
                                     string stdErr = mountProc.StandardError.ReadToEnd();
                                     mountProc.WaitForExit(15000);
                                     if (mountProc.ExitCode != 0)
-                                        Log.Error($"hdiutil attach failed (exit {mountProc.ExitCode}): {stdErr}");
+                                                                                if (stdErr.Contains("canceled"))
+                                            Log.Warn($"DMG has EULA/license — mount manually in Finder: {dmgPath}");
+                                        else
+                                            Log.Error($"hdiutil attach failed (exit {mountProc.ExitCode}): {stdErr}");
                                     else
                                         Log.Info($"Mounted at {mountPoint}");
                                 }
