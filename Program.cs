@@ -2,6 +2,7 @@ using Avalonia;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using GithubLauncher.Services.Logging;
 
 namespace GithubLauncher
 {
@@ -17,6 +18,16 @@ namespace GithubLauncher
 
         public static async Task<int> Main(string[] args)
         {
+            // Initialize runtime logging: DebugLogger (IDE), FileLogger (data dir), ConsoleLogger (terminal)
+            var logDir = Path.Combine(AppPaths.DataDirectory, "logs");
+            var compositeLog = new Services.Logging.CompositeLogger(
+                new Services.Logging.DebugLogger("Global"),
+                new Services.Logging.FileLogger("Global", logDir),
+                new Services.Logging.ConsoleLogger("Global"));
+            Services.Logging.Log.SetLogger(compositeLog);
+
+            Log.Debug("Application starting");
+
             if (args.Length > 0 && args[0].StartsWith("-"))
             {
                 if (OperatingSystem.IsWindows())

@@ -514,8 +514,8 @@ using GithubLauncher.Services.Logging;
                     }
                 }
 
-                // Fallback to version.txt
-                string versionFilePath = Path.Combine(currentAppDirectory, "version.txt");
+                // Fallback to version.txt (in data directory, not app bundle on macOS)
+                string versionFilePath = Path.Combine(AppPaths.DataDirectory, "version.txt");
                 if (File.Exists(versionFilePath))
                 {
                     currentVersionString = File.ReadAllText(versionFilePath).Trim();

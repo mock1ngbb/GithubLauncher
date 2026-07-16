@@ -124,7 +124,7 @@ namespace GithubLauncher.Services
         {
             try
             {
-                string versionFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "version.txt");
+                string versionFilePath = Path.Combine(AppPaths.DataDirectory, "version.txt");
                 CurrentVersionString = File.Exists(versionFilePath)
                     ? File.ReadAllText(versionFilePath).Trim()
                     : "Version information not found";
