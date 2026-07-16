@@ -506,7 +506,8 @@ namespace GithubLauncher.Services
             {
                 await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    await ShowMessageBoxAsync($"Error installing {game.Name}: {ex.Message}", "Installation Error");
+                    Log.Error($"Error installing {game.Name}", ex);
+				await ShowMessageBoxAsync($"Error installing {game.Name}: {ex.Message}", "Installation Error");
                 });
                 game.Status = GameStatus.NotInstalled;
                 game.DownloadProgress = 0;
