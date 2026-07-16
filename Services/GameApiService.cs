@@ -582,6 +582,20 @@ namespace GithubLauncher.Services
 
                 if (executables.Count == 0)
                 {
+                    // macOS .dmg handling
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    {
+                        var dmgFiles = Directory.GetFiles(gamePath, "*.dmg", SearchOption.TopDirectoryOnly);
+                        if (dmgFiles.Length > 0)
+                        {
+                            Log.Warn($"No executable in {game.Name} - .dmg found: {string.Join(", ", dmgFiles.Select(Path.GetFileName))}");
+                            await ShowMessageBoxAsync(
+                                $"{game.Name} was downloaded as a disk image (.dmg).\n\n" +
+                                $"To install:\n1. Open the .dmg in Finder\n2. Drag the .app to Applications\n3. Add ROM if needed\n\nLocation: {gamePath}",
+                                "DMG Install Required");
+                            return;
+                        }
+                    }
                     await ShowMessageBoxAsync(
                         $"No executable found for {game.Name} in:\n{gamePath}\n\nThe game may not have installed correctly.",
                         "Executable Not Found");
