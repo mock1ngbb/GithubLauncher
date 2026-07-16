@@ -123,7 +123,7 @@ namespace GithubLauncher
             byte[] plainBytes = Encoding.UTF8.GetBytes(plaintext);
             byte[] ciphertext = new byte[nonce.Length + plainBytes.Length + 16];
 
-            using var aes = new AesGcm(key);
+            using var aes = new AesGcm(key, 16);
             Array.Copy(nonce, 0, ciphertext, 0, nonce.Length);
             aes.Encrypt(nonce, plainBytes,
                 ciphertext.AsSpan(nonce.Length, plainBytes.Length),
@@ -152,7 +152,7 @@ namespace GithubLauncher
                 Array.Copy(ciphertext, nonceSize + dataLen, tag, 0, tagSize);
 
                 byte[] plainBytes = new byte[dataLen];
-                using var aes = new AesGcm(key);
+                using var aes = new AesGcm(key, 16);
                 aes.Decrypt(nonce, data, tag, plainBytes);
 
                 return Encoding.UTF8.GetString(plainBytes);
