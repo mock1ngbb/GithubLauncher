@@ -598,7 +598,10 @@ namespace GithubLauncher.Services
                                 var appName = (game.FolderName ?? game.Name?.Replace(" ", ""))?.Trim();
                                 if (appName != null && Directory.Exists("/Applications"))
                                 {
-                                    var found = Directory.GetDirectories("/Applications", appName + ".app", SearchOption.TopDirectoryOnly).FirstOrDefault();
+                                    var allApps = Directory.GetDirectories("/Applications", "*.app", SearchOption.TopDirectoryOnly);
+                                    var found = allApps.FirstOrDefault(a => Path.GetFileNameWithoutExtension(a).Contains(appName, StringComparison.OrdinalIgnoreCase));
+                                    found ??= allApps.FirstOrDefault(a => !Path.GetFileNameWithoutExtension(a).Equals("App", StringComparison.OrdinalIgnoreCase)
+                                        && !a.Contains("Github Launcher", StringComparison.OrdinalIgnoreCase));
                                     if (found != null && Directory.Exists(found))
                                     {
                                         Log.Info($"Launching installed .app: {found}");
