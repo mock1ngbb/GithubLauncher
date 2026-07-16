@@ -614,14 +614,14 @@ namespace GithubLauncher.Services
                                 }
                             }
 
-                            // Mount the DMG automatically
+                            // Mount the DMG automatically (fire-and-forget, then show dialog)
                             Log.Info($"Mounting DMG: {dmgPath}");
-                            var mountProc = Process.Start(new ProcessStartInfo("hdiutil") { ArgumentList = { "attach", dmgPath } });
-                            if (mountProc != null) await mountProc.WaitForExitAsync();
+                            try { Process.Start(new ProcessStartInfo("hdiutil") { ArgumentList = { "attach", dmgPath } }); }
+                            catch (Exception mountEx) { Log.Error($"Failed to mount DMG: {mountEx.Message}"); }
 
                             await ShowMessageBoxAsync(
                                 $"{game.Name} was downloaded as a disk image (.dmg).\n\n" +
-                                $"The disk image has been mounted in Finder.\n" +
+                                $"A Finder window should open showing the disk image contents.\n" +
                                 $"Drag the .app to your Applications folder, then press Play again.\n\n" +
                                 $"File: {dmgPath}",
                                 "DMG Mounted");
