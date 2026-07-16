@@ -1285,9 +1285,9 @@ namespace GithubLauncher.Services
                             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                                 Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
                             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                                Process.Start("xdg-open", url);
+                                Process.Start(new ProcessStartInfo("xdg-open") { ArgumentList = { url } });
                             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                                Process.Start("open", url);
+                                Process.Start(new ProcessStartInfo("open") { ArgumentList = { url } });
                         }
                         catch (Exception ex)
                         {

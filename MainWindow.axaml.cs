@@ -2228,11 +2228,11 @@ using GithubLauncher.Services.Logging;
                 }
                 else if (OperatingSystem.IsLinux())
                 {
-                    Process.Start("xdg-open", $"\"{url}\"");
+                    Process.Start(new ProcessStartInfo("xdg-open") { ArgumentList = { url } });
                 }
                 else if (OperatingSystem.IsMacOS())
                 {
-                    Process.Start("open", $"\"{url}\"");
+                    Process.Start(new ProcessStartInfo("open") { ArgumentList = { url } });
                 }
             }
             catch (Exception ex)

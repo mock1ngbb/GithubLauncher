@@ -319,7 +319,7 @@ namespace GithubLauncher.Services
             // Make executable
             try
             {
-                var chmod = Process.Start("chmod", $"+x \"{desktopFilePath}\"");
+                var chmod = Process.Start(new ProcessStartInfo("chmod") { ArgumentList = { "+x", desktopFilePath } });
                 chmod?.WaitForExit();
             }
             catch { }
