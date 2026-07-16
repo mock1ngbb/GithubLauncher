@@ -658,7 +658,7 @@ namespace GithubLauncher.Services
                                                 {
                                                     dittoProc.WaitForExit(120000);
                                                     if (dittoProc.ExitCode == 0)
-                                                        Log.Info($"Installed bundleName to /Applications");
+                                                        Log.Info($"Installed .app to /Applications");
                                                     else
                                                         Log.Error($"ditto failed: {dittoProc.StandardError.ReadToEnd()}");
                                                 }
@@ -728,7 +728,7 @@ namespace GithubLauncher.Services
 
                                 if (!alreadyInstalled)
                                 {
-                                    Log.Info($"Installing bundleName to /Applications via ditto...");
+                                    Log.Info($"Installing .app to /Applications via ditto...");
                                     var dittoPsi = new ProcessStartInfo("ditto")
                                     {
                                         ArgumentList = { appOnVolume, destPath },
@@ -746,7 +746,7 @@ namespace GithubLauncher.Services
                                             await ShowMessageBoxAsync($"Failed to install bundleName. Try dragging it manually.", "Install Failed");
                                             return;
                                         }
-                                        Log.Info($"Installed bundleName to /Applications");
+                                        Log.Info($"Installed .app to /Applications");
                                     }
                                 }
 
