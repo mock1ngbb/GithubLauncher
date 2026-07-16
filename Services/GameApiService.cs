@@ -200,7 +200,7 @@ namespace GithubLauncher.Services
 
             var gamePath = game.GetInstallPath(gamesFolder);
             if (!Directory.Exists(gamePath))
-                throw new DirectoryNotFoundException($"App folder not found: {gamePath}");
+                throw new DirectoryNotFoundException($"App folder not found: gamePath");
 
             game.IsLoading = true;
             try
@@ -566,7 +566,7 @@ namespace GithubLauncher.Services
 
                 if (!Directory.Exists(gamePath))
                 {
-                    await ShowMessageBoxAsync($"App directory not found: {gamePath}", "Directory Not Found");
+                    await ShowMessageBoxAsync($"App directory not found: gamePath", "Directory Not Found");
                     return;
                 }
 
@@ -645,7 +645,7 @@ namespace GithubLauncher.Services
                                             var destPath = Path.Combine("/Applications", bundleName);
                                             if (!Directory.Exists(destPath))
                                             {
-                                                Log.Info($"Copying {bundleName} to /Applications via ditto...");
+                                                Log.Info($"Copying bundleName to /Applications via ditto...");
                                                 var dittoPsi = new ProcessStartInfo("ditto")
                                                 {
                                                     ArgumentList = { a, destPath },
@@ -658,7 +658,7 @@ namespace GithubLauncher.Services
                                                 {
                                                     dittoProc.WaitForExit(120000);
                                                     if (dittoProc.ExitCode == 0)
-                                                        Log.Info($"Installed {bundleName} to /Applications");
+                                                        Log.Info($"Installed bundleName to /Applications");
                                                     else
                                                         Log.Error($"ditto failed: {dittoProc.StandardError.ReadToEnd()}");
                                                 }
@@ -728,7 +728,7 @@ namespace GithubLauncher.Services
 
                                 if (!alreadyInstalled)
                                 {
-                                    Log.Info($"Installing {bundleName} to /Applications via ditto...");
+                                    Log.Info($"Installing bundleName to /Applications via ditto...");
                                     var dittoPsi = new ProcessStartInfo("ditto")
                                     {
                                         ArgumentList = { appOnVolume, destPath },
@@ -743,10 +743,10 @@ namespace GithubLauncher.Services
                                         if (dittoProc.ExitCode != 0)
                                         {
                                             Log.Error($"ditto failed: {dittoProc.StandardError.ReadToEnd()}");
-                                            await ShowMessageBoxAsync($"Failed to install {bundleName}. Try dragging it manually.", "Install Failed");
+                                            await ShowMessageBoxAsync($"Failed to install bundleName. Try dragging it manually.", "Install Failed");
                                             return;
                                         }
-                                        Log.Info($"Installed {bundleName} to /Applications");
+                                        Log.Info($"Installed bundleName to /Applications");
                                     }
                                 }
 
@@ -772,7 +772,7 @@ namespace GithubLauncher.Services
                                 catch (Exception csEx) { Log.Debug($"codesign: {csEx.Message}"); }
 
                                 if (!signatureValid)
-                                    Log.Warn($"Launching {bundleName} without valid signature (may show Gatekeeper prompt)");
+                                    Log.Warn($"Launching bundleName without valid signature (may show Gatekeeper prompt)");
 
                                 // Launch from /Applications
                                 Log.Info($"Launching {destPath}");
@@ -805,7 +805,7 @@ namespace GithubLauncher.Services
                         }
                     }
                     await ShowMessageBoxAsync(
-                        $"No executable found for {game.Name} in:\n{gamePath}\n\nThe game may not have installed correctly.",
+                        $"No executable found for {game.Name} in:\ngamePath\n\nThe game may not have installed correctly.",
                         "Executable Not Found");
                     return;
                 }
@@ -1026,7 +1026,7 @@ namespace GithubLauncher.Services
         private static readonly Dictionary<string, Func<string, string, string>> RunnerPlaceholderResolvers = new(StringComparer.Ordinal)
         {
             ["{exe}"] = (executablePath, _) => executablePath,
-            ["{gamePath}"] = (_, gamePath) => gamePath,
+            ["gamePath"] = (_, gamePath) => gamePath,
             ["{exeDir}"] = (executablePath, gamePath) => Path.GetDirectoryName(executablePath) ?? gamePath
         };
 
@@ -1138,7 +1138,7 @@ namespace GithubLauncher.Services
             var resolvedCommand = commandTemplate.Trim();
 
             if (!resolvedCommand.Contains("{exe}", StringComparison.Ordinal) &&
-                !resolvedCommand.Contains("{gamePath}", StringComparison.Ordinal) &&
+                !resolvedCommand.Contains("gamePath", StringComparison.Ordinal) &&
                 !resolvedCommand.Contains("{exeDir}", StringComparison.Ordinal))
             {
                 resolvedCommand += " {exe}";
