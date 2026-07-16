@@ -592,38 +592,111 @@ namespace GithubLauncher.Services
                             var dmgName = Path.GetFileName(dmgPath);
                             Log.Warn($"No executable in {game.Name} - .dmg found: {dmgName}");
 
-                            // Look for .app in /Applications
-                            var appName = (game.FolderName ?? game.Name?.Replace(" ", ""))?.Trim();
-                            if (appName != null)
+                            // Check if already in /Applications
+                            try
                             {
-                                var installedApp = Directory.GetDirectories("/Applications", appName + ".app", SearchOption.TopDirectoryOnly).FirstOrDefault();
-                                if (installedApp != null)
+                                var appName = (game.FolderName ?? game.Name?.Replace(" ", ""))?.Trim();
+                                if (appName != null && Directory.Exists("/Applications"))
                                 {
-                                    Log.Info($"Launching installed .app: {installedApp}");
-                                    Process.Start(new ProcessStartInfo("open") { ArgumentList = { installedApp } });
-                                    return;
+                                    var found = Directory.GetDirectories("/Applications", appName + ".app", SearchOption.TopDirectoryOnly).FirstOrDefault();
+                                    if (found != null && Directory.Exists(found))
+                                    {
+                                        Log.Info($"Launching installed .app: {found}");
+                                        Process.Start(new ProcessStartInfo("open") { ArgumentList = { found } });
+                                        return;
+                                    }
                                 }
-                                // Check /Volumes for mounted DMG
-                                var volName = Path.GetFileNameWithoutExtension(dmgName);
-                                var mountedApp = Directory.GetDirectories("/Volumes/" + volName, "*.app", SearchOption.TopDirectoryOnly).FirstOrDefault();
-                                if (mountedApp != null)
+                            }
+                            catch (Exception ex) { Log.Debug($"DMG /Applications check: {ex.Message}"); }
+
+                            // Scan all /Volumes for matching .app
+                            try
+                            {
+                                var appName = (game.FolderName ?? game.Name?.Replace(" ", ""))?.Trim();
+                                if (appName != null && Directory.Exists("/Volumes"))
                                 {
-                                    Log.Info($"Launching from mounted DMG: {mountedApp}");
-                                    Process.Start(new ProcessStartInfo("open") { ArgumentList = { mountedApp } });
-                                    return;
+                                    foreach (var vol in Directory.GetDirectories("/Volumes"))
+                                    {
+                                        var apps = Directory.GetDirectories(vol, "*.app", SearchOption.TopDirectoryOnly);
+                                        foreach (var a in apps)
+                                        {
+                                            var name = Path.GetFileNameWithoutExtension(a);
+                                            if (!name.Equals("App", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                Log.Info($"Launching from mounted DMG: {a}");
+                                                Process.Start(new ProcessStartInfo("open") { ArgumentList = { a } });
+                                                return;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            catch (Exception ex) { Log.Debug($"DMG /Volumes scan: {ex.Message}"); }
+
+                            // Mount the DMG and capture mount point
+                            Log.Info($"Mounting DMG: {dmgPath}");
+                            string? mountPoint = null;
+                            try
+                            {
+                                var mountPsi = new ProcessStartInfo("hdiutil")
+                                {
+                                    ArgumentList = { "attach", dmgPath, "-noverify", "-noautofsck" },
+                                    RedirectStandardOutput = true,
+                                    RedirectStandardError = true,
+                                    UseShellExecute = false
+                                };
+                                using var mountProc = Process.Start(mountPsi);
+                                if (mountProc != null)
+                                {
+                                    string stdOut = mountProc.StandardOutput.ReadToEnd();
+                                    mountProc.WaitForExit(15000);
+                                    Log.Debug($"hdiutil exit code: {mountProc.ExitCode}");
+
+                                    if (mountProc.ExitCode == 0)
+                                    {
+                                        // Parse mount point from last output line (tab-separated)
+                                        var lines = stdOut.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                                        if (lines.Length > 0)
+                                        {
+                                            var last = lines[lines.Length - 1].Trim();
+                                            var parts = last.Split('\t');
+                                            if (parts.Length >= 3)
+                                                mountPoint = parts[2].Trim();
+                                        }
+                                        Log.Info($"DMG mounted at: {mountPoint ?? "unknown"}");
+                                    }
+                                    else
+                                    {
+                                        Log.Error($"hdiutil attach failed (exit {mountProc.ExitCode}): {mountProc.StandardError.ReadToEnd()}");
+                                    }
+                                }
+                            }
+                            catch (Exception mountEx) { Log.Error($"hdiutil exception: {mountEx.Message}"); }
+
+                            // Check mounted volume for .app
+                            bool launchedFromMount = false;
+                            if (mountPoint != null && Directory.Exists(mountPoint))
+                            {
+                                var appsOnVolume = Directory.GetDirectories(mountPoint, "*.app", SearchOption.TopDirectoryOnly);
+                                if (appsOnVolume.Length > 0)
+                                {
+                                    Log.Info($"Found .app on mounted volume: {appsOnVolume[0]}");
+                                    Process.Start(new ProcessStartInfo("open") { ArgumentList = { appsOnVolume[0] } });
+                                    launchedFromMount = true;
                                 }
                             }
 
-                            // Show user instructions for manual DMG mounting
-                            Log.Info($"DMG found at: {dmgPath} - showing instructions");
-                            ShowMessageBoxAsync(
-                                $"{game.Name} was downloaded as a disk image (.dmg).\n\n" +
-                                $"The file is at:\n{dmgPath}\n\n" +
-                                $"1. Open the .dmg by double-clicking it in Finder\n" +
-                                $"2. Drag the .app to your Applications folder\n" +
-                                $"3. If the game needs a ROM, place it in the right folder\n" +
-                                $"4. Press Play again to launch from /Applications",
-                                "DMG Install Required");
+                            if (!launchedFromMount)
+                            {
+                                await ShowMessageBoxAsync(
+                                    $"{game.Name} was downloaded as a disk image (.dmg).\n\n" +
+                                    (mountPoint != null
+                                        ? $"The disk image has been mounted at:\n{mountPoint}\n\n"
+                                        : $"The disk image is being mounted — it should open in Finder.\n\n") +
+                                    $"Drag the .app to your Applications folder, then press Play again.\n\n" +
+                                    $"File: {dmgPath}",
+                                    "DMG Install Required");
+                            }
                             return;
                         }
                     }
