@@ -654,14 +654,14 @@ namespace GithubLauncher.Services
                             }
                             catch (Exception ex) { Log.Debug($"DMG /Volumes scan: {ex.Message}"); }
 
-                            // Mount the DMG and capture mount point
-                            Log.Info($"Mounting DMG: {dmgPath}");
-                            string? mountPoint = null;
+                            // Mount the DMG to a predictable mount point
+                            var mountPoint = "/Volumes/" + (game.FolderName ?? "Game") + "-Install";
+                            Log.Info($"Mounting DMG to {mountPoint}: {dmgPath}");
                             try
                             {
                                 var mountPsi = new ProcessStartInfo("hdiutil")
                                 {
-                                    ArgumentList = { "attach", dmgPath, "-noverify", "-noautofsck" },
+                                    ArgumentList = { "attach", dmgPath, "-mountpoint", mountPoint, "-noverify", "-noautofsck" },
                                     RedirectStandardOutput = true,
                                     RedirectStandardError = true,
                                     UseShellExecute = false
@@ -669,27 +669,12 @@ namespace GithubLauncher.Services
                                 using var mountProc = Process.Start(mountPsi);
                                 if (mountProc != null)
                                 {
-                                    string stdOut = mountProc.StandardOutput.ReadToEnd();
+                                    string stdErr = mountProc.StandardError.ReadToEnd();
                                     mountProc.WaitForExit(15000);
-                                    Log.Debug($"hdiutil exit code: {mountProc.ExitCode}");
-
-                                    if (mountProc.ExitCode == 0)
-                                    {
-                                        // Parse mount point from last output line (tab-separated)
-                                        var lines = stdOut.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-                                        if (lines.Length > 0)
-                                        {
-                                            var last = lines[lines.Length - 1].Trim();
-                                            var parts = last.Split('\t');
-                                            if (parts.Length >= 3)
-                                                mountPoint = parts[2].Trim();
-                                        }
-                                        Log.Info($"DMG mounted at: {mountPoint ?? "unknown"}");
-                                    }
+                                    if (mountProc.ExitCode != 0)
+                                        Log.Error($"hdiutil attach failed (exit {mountProc.ExitCode}): {stdErr}");
                                     else
-                                    {
-                                        Log.Error($"hdiutil attach failed (exit {mountProc.ExitCode}): {mountProc.StandardError.ReadToEnd()}");
-                                    }
+                                        Log.Info($"Mounted at {mountPoint}");
                                 }
                             }
                             catch (Exception mountEx) { Log.Error($"hdiutil exception: {mountEx.Message}"); }
@@ -722,7 +707,7 @@ namespace GithubLauncher.Services
 
                                 if (!alreadyInstalled)
                                 {
-                                    Log.Info($"Installing {bundleName} to /Applications...");
+                                    Log.Info($"Installing {bundleName} to /Applications via ditto...");
                                     var dittoPsi = new ProcessStartInfo("ditto")
                                     {
                                         ArgumentList = { appOnVolume, destPath },
@@ -734,16 +719,39 @@ namespace GithubLauncher.Services
                                     if (dittoProc != null)
                                     {
                                         dittoProc.WaitForExit(120000);
-                                        if (dittoProc.ExitCode == 0)
-                                            Log.Info($"Installed {bundleName} to /Applications");
-                                        else
+                                        if (dittoProc.ExitCode != 0)
                                         {
                                             Log.Error($"ditto failed: {dittoProc.StandardError.ReadToEnd()}");
-                                            await ShowMessageBoxAsync($"Failed to install {bundleName}. Try dragging it to Applications manually.", "Install Failed");
+                                            await ShowMessageBoxAsync($"Failed to install {bundleName}. Try dragging it manually.", "Install Failed");
                                             return;
                                         }
+                                        Log.Info($"Installed {bundleName} to /Applications");
                                     }
                                 }
+
+                                // Security: verify code signature before launching
+                                bool signatureValid = false;
+                                try
+                                {
+                                    var csPsi = new ProcessStartInfo("codesign")
+                                    {
+                                        ArgumentList = { "-dv", "--strict", destPath },
+                                        RedirectStandardOutput = true,
+                                        RedirectStandardError = true,
+                                        UseShellExecute = false
+                                    };
+                                    using var csProc = Process.Start(csPsi);
+                                    if (csProc != null)
+                                    {
+                                        csProc.WaitForExit(5000);
+                                        signatureValid = csProc.ExitCode == 0;
+                                        Log.Debug($"codesign -dv: {(signatureValid ? "valid" : "unsigned/ad-hoc")}");
+                                    }
+                                }
+                                catch (Exception csEx) { Log.Debug($"codesign: {csEx.Message}"); }
+
+                                if (!signatureValid)
+                                    Log.Warn($"Launching {bundleName} without valid signature (may show Gatekeeper prompt)");
 
                                 // Launch from /Applications
                                 Log.Info($"Launching {destPath}");
