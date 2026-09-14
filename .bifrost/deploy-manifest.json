@@ -7,16 +7,15 @@
 			"service_id": "script:github-launcher:build",
 			"platform": "script",
 			"build": {
-				"command": "dotnet publish --configuration Release --runtime osx-arm64 --self-contained true -p:IncludeNativeLibrariesForSelfExtract=true"
+				"build_cmd": "dotnet publish --configuration Release --runtime osx-arm64 --self-contained true -p:IncludeNativeLibrariesForSelfExtract=true"
 			},
 			"artifact": {
-				"type": "directory",
-				"path": "bin/Release/net9.0/osx-arm64/publish"
+				"type": "none"
 			},
 			"health_check": {
-				"type": "file-exists",
-				"path": "bin/Release/net9.0/osx-arm64/publish/GithubLauncher"
+				"command": "test -x bin/Release/net9.0/osx-arm64/publish/GithubLauncher"
 			},
+			"rollback_strategy": "manual",
 			"watch_paths": [
 				"*.cs",
 				"*.csproj",
